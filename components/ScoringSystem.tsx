@@ -119,6 +119,8 @@ export default function ScoringSystem({ user }: ScoringSystemProps) {
       tossDecision,
       status: 'live',
       currentInnings: 1,
+      currentBall: 0,
+      commentary: [],
       innings: [
         {
           battingTeam: tossDecision === 'bat' ? tossWinner : (tossWinner === team1Name ? team2Name : team1Name),
