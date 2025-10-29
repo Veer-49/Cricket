@@ -1,12 +1,11 @@
-'use client'
-
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { Toaster } from 'react-hot-toast'
 import AuthModal from '@/components/AuthModal'
 import Dashboard from '@/components/Dashboard'
 import { User } from '@/types'
 
-export default function Home() {
+function App() {
   const [user, setUser] = useState<User | null>(null)
   const [showAuth, setShowAuth] = useState(true)
 
@@ -35,6 +34,16 @@ export default function Home() {
     return (
       <div className="min-h-screen royal-gradient royal-pattern flex items-center justify-center">
         <AuthModal onLogin={handleLogin} />
+        <Toaster 
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#363636',
+              color: '#fff',
+            },
+          }}
+        />
       </div>
     )
   }
@@ -47,6 +56,18 @@ export default function Home() {
       className="min-h-screen"
     >
       <Dashboard user={user} onLogout={handleLogout} />
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+        }}
+      />
     </motion.div>
   )
 }
+
+export default App
