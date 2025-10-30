@@ -6,14 +6,22 @@ module.exports = {
     './app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
+    screens: {
+      'xs': '475px',
+      'sm': '640px',
+      'md': '768px',
+      'lg': '1024px',
+      'xl': '1280px',
+      '2xl': '1536px',
+    },
     extend: {
       colors: {
         cricket: {
-          primary: '#dc2626',
-          secondary: '#b91c1c',
+          primary: '#2563eb',
+          secondary: '#1d4ed8',
           accent: '#fbbf24',
-          dark: '#7f1d1d',
-          light: '#fef2f2'
+          dark: '#1e3a8a',
+          light: '#eff6ff'
         },
         royal: {
           primary: '#1e1b4b',

@@ -14,16 +14,16 @@
 
 @layer components {
   .btn-primary {
-    @apply bg-gradient-to-r from-royal-primary to-royal-secondary hover:from-royal-secondary hover:to-royal-purple text-white font-semibold py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl;
+    @apply bg-gradient-to-r from-royal-primary to-royal-secondary hover:from-royal-secondary hover:to-royal-purple text-white font-semibold py-2 px-3 sm:px-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl text-sm sm:text-base;
     box-shadow: 0 4px 14px 0 rgba(30, 27, 75, 0.4);
   }
   
   .btn-secondary {
-    @apply bg-cricket-secondary hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg;
+    @apply bg-cricket-secondary hover:bg-green-700 text-white font-semibold py-2 px-3 sm:px-4 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg text-sm sm:text-base;
   }
   
   .card {
-    @apply bg-gradient-to-br from-white via-gray-50 to-gray-100 rounded-xl shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border border-gray-200 backdrop-blur-sm;
+    @apply bg-gradient-to-br from-white via-gray-50 to-gray-100 rounded-xl shadow-2xl transition-all duration-300 transform hover:-translate-y-1 sm:hover:-translate-y-2 border border-gray-200 backdrop-blur-sm;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1);
   }
   
@@ -32,7 +32,7 @@
   }
   
   .input-field {
-    @apply w-full px-4 py-3 border border-white/30 rounded-lg focus:ring-2 focus:ring-royal-gold focus:border-royal-gold transition-all duration-200 bg-white/90 backdrop-blur-sm text-gray-900;
+    @apply w-full px-3 py-2 sm:px-4 sm:py-3 border border-white/30 rounded-lg focus:ring-2 focus:ring-royal-gold focus:border-royal-gold transition-all duration-200 bg-white/90 backdrop-blur-sm text-gray-900 text-sm sm:text-base;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   }
   

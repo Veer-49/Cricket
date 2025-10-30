@@ -46,7 +46,7 @@ export default function UserProfile({ user }: UserProfileProps) {
         animate={{ opacity: 1, y: 0 }}
         className="card p-8"
       >
-        <div className="flex flex-col md:flex-row items-center md:items-start space-y-4 md:space-y-0 md:space-x-6">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
           <div className="relative">
             <div className="w-32 h-32 bg-gradient-to-r from-cricket-primary to-cricket-secondary rounded-full flex items-center justify-center">
               <UserIcon className="w-16 h-16 text-white" />
@@ -56,14 +56,14 @@ export default function UserProfile({ user }: UserProfileProps) {
             </button>
           </div>
           
-          <div className="flex-1 text-center md:text-left">
+          <div className="flex-1 text-center sm:text-left">
             <h1 className="text-3xl font-bold text-gray-800 mb-2">{user.name}</h1>
-            <div className="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0 md:space-x-6 text-gray-600">
-              <div className="flex items-center justify-center md:justify-start">
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-6 text-gray-600">
+              <div className="flex items-center justify-center sm:justify-start">
                 <Mail className="w-4 h-4 mr-2" />
                 <span>{user.email}</span>
               </div>
-              <div className="flex items-center justify-center md:justify-start">
+              <div className="flex items-center justify-center sm:justify-start">
                 <Phone className="w-4 h-4 mr-2" />
                 <span>{user.phone}</span>
               </div>
@@ -105,7 +105,7 @@ export default function UserProfile({ user }: UserProfileProps) {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-6"
+            className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6"
           >
             {stats.slice(0, 4).map((stat, index) => {
               const Icon = stat.icon

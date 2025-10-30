@@ -51,13 +51,12 @@ export default function Sidebar({ activeSection, setActiveSection, isOpen, onClo
       </AnimatePresence>
 
       {/* Sidebar */}
-      <motion.aside
-        initial={{ x: -300 }}
-        animate={{ x: isOpen ? 0 : -300 }}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      <aside
         className={`
-          fixed top-0 left-0 h-full w-64 bg-gradient-to-b from-white/95 via-gray-50/90 to-gray-100/85 backdrop-blur-xl shadow-2xl z-50 lg:translate-x-0 lg:static lg:z-auto border-r border-white/20
-          ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          fixed top-0 left-0 h-full w-64 bg-gradient-to-b from-white/95 via-gray-50/90 to-gray-100/85 backdrop-blur-xl shadow-2xl z-50 border-r border-white/20
+          transition-transform duration-300 ease-in-out
+          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+          lg:translate-x-0 lg:static lg:z-auto
         `}
       >
         <div className="flex flex-col h-full pt-16 lg:pt-20">
@@ -127,7 +126,7 @@ export default function Sidebar({ activeSection, setActiveSection, isOpen, onClo
             </div>
           </div>
         </div>
-      </motion.aside>
+      </aside>
     </>
   )
 }

@@ -234,10 +234,6 @@ export default function TeamCreationWithInvites({ user, onClose }: TeamCreationW
       localStorage.setItem('cricketPlayers', JSON.stringify([...existingPlayers, ...players]))
       localStorage.setItem('cricketTeamPlayerMaps', JSON.stringify([...existingMappings, ...teamPlayerMaps]))
       localStorage.setItem('cricketWhatsAppInvites', JSON.stringify([...existingInvites, ...invites]))
-
-      // Also save to shared storage for cross-device access
-      const existingSharedTeams = JSON.parse(localStorage.getItem('cricketSharedTeams') || '[]')
-      localStorage.setItem('cricketSharedTeams', JSON.stringify([...existingSharedTeams, newTeam]))
       
       setTeamCreated(newTeam)
       setInvitesSent(invites)
@@ -290,12 +286,12 @@ export default function TeamCreationWithInvites({ user, onClose }: TeamCreationW
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-2 sm:p-4"
       >
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+          className="bg-white rounded-2xl p-4 sm:p-6 lg:p-8 max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto"
         >
           <div className="text-center mb-6">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -368,18 +364,18 @@ export default function TeamCreationWithInvites({ user, onClose }: TeamCreationW
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-2 sm:p-4"
     >
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="bg-white rounded-2xl p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-2xl p-4 sm:p-6 lg:p-8 max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto"
       >
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
           <div>
-            <h3 className="text-2xl font-bold text-gray-800">Create Team with Invites</h3>
-            <p className="text-gray-600">Step {step} of 3</p>
+            <h3 className="text-xl sm:text-2xl font-bold text-gray-800">Create Team with Invites</h3>
+            <p className="text-sm sm:text-base text-gray-600">Step {step} of 3</p>
           </div>
           <button
             onClick={onClose}
@@ -390,10 +386,10 @@ export default function TeamCreationWithInvites({ user, onClose }: TeamCreationW
         </div>
 
         {/* Progress Bar */}
-        <div className="flex items-center mb-8">
+        <div className="flex items-center mb-6 sm:mb-8">
           {[1, 2, 3].map((stepNumber) => (
             <div key={stepNumber} className="flex items-center">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+              <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-medium ${
                 step >= stepNumber 
                   ? 'bg-cricket-primary text-white' 
                   : 'bg-gray-200 text-gray-600'
@@ -401,7 +397,7 @@ export default function TeamCreationWithInvites({ user, onClose }: TeamCreationW
                 {stepNumber}
               </div>
               {stepNumber < 3 && (
-                <div className={`w-16 h-1 mx-2 ${
+                <div className={`w-8 sm:w-16 h-1 mx-1 sm:mx-2 ${
                   step > stepNumber ? 'bg-cricket-primary' : 'bg-gray-200'
                 }`} />
               )}
@@ -491,7 +487,7 @@ export default function TeamCreationWithInvites({ user, onClose }: TeamCreationW
                   key={player.tempId}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border border-gray-200 rounded-lg"
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 p-3 sm:p-4 border border-gray-200 rounded-lg"
                 >
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
@@ -613,10 +609,10 @@ export default function TeamCreationWithInvites({ user, onClose }: TeamCreationW
         )}
 
         {/* Navigation */}
-        <div className="flex justify-between mt-8">
+        <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-0 mt-6 sm:mt-8">
           <button
             onClick={() => step > 1 ? setStep(step - 1) : onClose()}
-            className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="px-4 sm:px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm sm:text-base"
           >
             {step === 1 ? 'Cancel' : 'Back'}
           </button>
@@ -632,10 +628,11 @@ export default function TeamCreationWithInvites({ user, onClose }: TeamCreationW
               }
             }}
             disabled={!isStepValid() || loading}
-            className="px-6 py-2 btn-primary disabled:opacity-50 flex items-center"
+            className="px-4 sm:px-6 py-2 btn-primary disabled:opacity-50 flex items-center justify-center text-sm sm:text-base"
           >
             {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            {step === 1 ? 'Next' : step === 2 ? 'Check Players' : 'Create Team & Send Invites'}
+            <span className="hidden sm:inline">{step === 1 ? 'Next' : step === 2 ? 'Check Players' : 'Create Team & Send Invites'}</span>
+            <span className="sm:hidden">{step === 1 ? 'Next' : step === 2 ? 'Check' : 'Create'}</span>
           </button>
         </div>
       </motion.div>

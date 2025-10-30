@@ -20,9 +20,7 @@ import {
   Trash2,
   UserPlus,
   Eye,
-  MessageCircle,
-  RefreshCw,
-  Bug
+  MessageCircle
 } from 'lucide-react'
 // Removed uuid import - using custom 10-digit ID generator
 import toast from 'react-hot-toast'
@@ -42,6 +40,8 @@ export default function TeamManagement({ user }: TeamManagementProps) {
   const [showEditModal, setShowEditModal] = useState<Team | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [formatFilter, setFormatFilter] = useState<string>('all')
+  const [playerCountFilter, setPlayerCountFilter] = useState<string>('all')
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'most-players' | 'least-players'>('newest')
   const [viewMode, setViewMode] = useState<'my-teams' | 'all-teams'>('my-teams')
   const [joinTeamId, setJoinTeamId] = useState('')
 
@@ -72,18 +72,20 @@ export default function TeamManagement({ user }: TeamManagementProps) {
 
   useEffect(() => {
     // Load teams from localStorage
-    loadTeams()
+    const savedTeams = JSON.parse(localStorage.getItem('cricketTeams') || '[]')
+    setTeams(savedTeams)
 
     // Add event listener for storage changes (when other tabs modify localStorage)
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'cricketTeams' || e.key === 'cricketSharedTeams') {
-        loadTeams()
+      if (e.key === 'cricketTeams') {
+        const updatedTeams = JSON.parse(e.newValue || '[]')
+        setTeams(updatedTeams)
       }
     }
 
     // Add event listener for window focus (refresh when user comes back to tab)
     const handleWindowFocus = () => {
-      loadTeams()
+      refreshTeams()
     }
 
     window.addEventListener('storage', handleStorageChange)
@@ -95,53 +97,10 @@ export default function TeamManagement({ user }: TeamManagementProps) {
     }
   }, [])
 
-  // Enhanced function to load teams from both local and shared storage
-  const loadTeams = () => {
-    try {
-      // Load local teams (teams created by current user)
-      const localTeams = JSON.parse(localStorage.getItem('cricketTeams') || '[]')
-      
-      // Load shared teams (teams shared across all users)
-      const sharedTeams = JSON.parse(localStorage.getItem('cricketSharedTeams') || '[]')
-      
-      // Combine and deduplicate teams by ID
-      const allTeams = [...localTeams, ...sharedTeams]
-      const uniqueTeams = allTeams.filter((team, index, self) => 
-        index === self.findIndex(t => t.id === team.id)
-      )
-      
-      console.log('Loaded teams:', {
-        localTeams: localTeams.length,
-        sharedTeams: sharedTeams.length,
-        uniqueTeams: uniqueTeams.length
-      })
-      
-      setTeams(uniqueTeams)
-    } catch (error) {
-      console.error('Error loading teams:', error)
-      setTeams([])
-    }
-  }
-
-  // Function to save team to shared storage
-  const saveTeamToSharedStorage = (team: Team) => {
-    try {
-      const sharedTeams = JSON.parse(localStorage.getItem('cricketSharedTeams') || '[]')
-      const existingIndex = sharedTeams.findIndex((t: Team) => t.id === team.id)
-      
-      if (existingIndex >= 0) {
-        // Update existing team
-        sharedTeams[existingIndex] = team
-      } else {
-        // Add new team
-        sharedTeams.push(team)
-      }
-      
-      localStorage.setItem('cricketSharedTeams', JSON.stringify(sharedTeams))
-      console.log('Team saved to shared storage:', team.id)
-    } catch (error) {
-      console.error('Error saving team to shared storage:', error)
-    }
+  // Add a function to refresh teams from localStorage
+  const refreshTeams = () => {
+    const savedTeams = JSON.parse(localStorage.getItem('cricketTeams') || '[]')
+    setTeams(savedTeams)
   }
 
   useEffect(() => {
@@ -165,11 +124,14 @@ export default function TeamManagement({ user }: TeamManagementProps) {
       console.log('Public teams filtered:', filtered.length)
     }
 
-    // Search filter
+    // Search filter - search in team name and captain name
     if (searchTerm) {
-      filtered = filtered.filter(team => 
-        team.name.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+      const searchLower = searchTerm.toLowerCase()
+      filtered = filtered.filter(team => {
+        const captainName = registeredUsers.find(u => u.id === team.captainId)?.name || ''
+        return team.name.toLowerCase().includes(searchLower) ||
+               captainName.toLowerCase().includes(searchLower)
+      })
     }
 
     // Format filter
@@ -177,9 +139,40 @@ export default function TeamManagement({ user }: TeamManagementProps) {
       filtered = filtered.filter(team => team.matchFormat === formatFilter)
     }
 
+    // Player count filter
+    if (playerCountFilter !== 'all') {
+      switch (playerCountFilter) {
+        case 'small':
+          filtered = filtered.filter(team => team.players.length <= 5)
+          break
+        case 'medium':
+          filtered = filtered.filter(team => team.players.length >= 6 && team.players.length <= 10)
+          break
+        case 'large':
+          filtered = filtered.filter(team => team.players.length >= 11)
+          break
+      }
+    }
+
+    // Sort teams
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        case 'oldest':
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        case 'most-players':
+          return b.players.length - a.players.length
+        case 'least-players':
+          return a.players.length - b.players.length
+        default:
+          return 0
+      }
+    })
+
     console.log('Final filtered teams:', filtered.length)
     setFilteredTeams(filtered)
-  }, [teams, viewMode, searchTerm, formatFilter, user])
+  }, [teams, viewMode, searchTerm, formatFilter, playerCountFilter, sortBy, user, registeredUsers])
 
   // Generate unique 10-digit random team ID
   const generateTeamId = (): string => {
@@ -269,24 +262,9 @@ export default function TeamManagement({ user }: TeamManagementProps) {
       draws: 0
     }
 
-    // Save to local storage (for backward compatibility)
     const updatedTeams = [...teams, newTeam]
-    localStorage.setItem('cricketTeams', JSON.stringify(updatedTeams))
-
-    // Save to shared storage (for cross-device access)
-    saveTeamToSharedStorage(newTeam)
-
-    // Update state
     setTeams(updatedTeams)
-
-    console.log('=== TEAM CREATION DEBUG ===')
-    console.log('Created team:', newTeam.name, 'with ID:', newTeam.id)
-    console.log('Team saved to both local and shared storage')
-    
-    // Verify the team was saved
-    const verifyShared = JSON.parse(localStorage.getItem('cricketSharedTeams') || '[]')
-    console.log('Verification - Shared teams count:', verifyShared.length)
-    console.log('Verification - Team exists in shared:', verifyShared.some((t: Team) => t.id === newTeam.id))
+    localStorage.setItem('cricketTeams', JSON.stringify(updatedTeams))
 
     toast.success(`Team "${teamName}" created successfully!`)
     toast.success(`Team ID: ${newTeam.id} (copied to clipboard)`)
@@ -303,39 +281,13 @@ export default function TeamManagement({ user }: TeamManagementProps) {
   const handleJoinTeam = () => {
     if (!joinTeamId || !user) return
 
-    console.log('=== TEAM JOIN DEBUG ===')
-    console.log('Trying to join team ID:', joinTeamId)
-    console.log('Current user:', user.name, user.id)
-
-    // Search in both local and shared storage directly
-    const localTeams = JSON.parse(localStorage.getItem('cricketTeams') || '[]')
-    const sharedTeams = JSON.parse(localStorage.getItem('cricketSharedTeams') || '[]')
-    const allTeams = [...localTeams, ...sharedTeams]
-    
-    console.log('Local teams count:', localTeams.length)
-    console.log('Shared teams count:', sharedTeams.length)
-    console.log('Total teams count:', allTeams.length)
-    console.log('All team IDs:', allTeams.map(t => t.id))
-    console.log('All team names:', allTeams.map(t => t.name))
-    
-    // Find team by ID (exact match)
-    const team = allTeams.find(t => t.id === joinTeamId.trim())
-    console.log('Found team:', team ? team.name : 'NOT FOUND')
-    
+    const team = teams.find(t => t.id === joinTeamId)
     if (!team) {
-      toast.error('Team not found! Please check the Team ID and try again.')
-      console.log('❌ Team not found. Available team IDs:', allTeams.map(t => t.id))
-      
-      // Check if there's a partial match
-      const partialMatch = allTeams.find(t => t.id.includes(joinTeamId.trim()))
-      if (partialMatch) {
-        console.log('🔍 Partial match found:', partialMatch.id, partialMatch.name)
-        toast.error(`No exact match found. Did you mean team "${partialMatch.name}" (ID: ${partialMatch.id})?`)
-      }
+      toast.error('Team not found!')
       return
     }
 
-    if (team.players.some((p: TeamPlayer) => p.userId === user.id)) {
+    if (team.players.some(p => p.userId === user.id)) {
       toast.error('You are already a member of this team!')
       return
     }
@@ -352,15 +304,82 @@ export default function TeamManagement({ user }: TeamManagementProps) {
       players: [...team.players, newPlayer]
     }
 
-    // Update shared storage
-    saveTeamToSharedStorage(updatedTeam)
-
-    // Refresh teams list to show updated data
-    loadTeams()
+    const updatedTeams = teams.map(t => t.id === team.id ? updatedTeam : t)
+    setTeams(updatedTeams)
+    localStorage.setItem('cricketTeams', JSON.stringify(updatedTeams))
 
     toast.success(`Successfully joined "${team.name}"!`)
     setJoinTeamId('')
     setShowJoinModal(false)
+    
+    // Create a notification for the team captain
+    const notifications = JSON.parse(localStorage.getItem('teamNotifications') || '[]')
+    const newNotification = {
+      id: Date.now().toString(),
+      teamId: team.id,
+      teamName: team.name,
+      captainId: team.captainId,
+      message: `${user.name} has joined your team "${team.name}"`,
+      type: 'player_joined',
+      createdAt: new Date(),
+      read: false
+    }
+    notifications.push(newNotification)
+    localStorage.setItem('teamNotifications', JSON.stringify(notifications))
+  }
+
+  const handleQuickJoinTeam = (teamId: string) => {
+    if (!user) return
+
+    const team = teams.find(t => t.id === teamId)
+    if (!team) {
+      toast.error('Team not found!')
+      return
+    }
+
+    if (team.players.some(p => p.userId === user.id)) {
+      toast.error('You are already a member of this team!')
+      return
+    }
+
+    if (!team.isPublic) {
+      toast.error('This team is private. Use the team ID to join.')
+      return
+    }
+
+    const newPlayer: TeamPlayer = {
+      userId: user.id,
+      name: user.name,
+      role: 'All-rounder',
+      battingOrder: team.players.length + 1
+    }
+
+    const updatedTeam = {
+      ...team,
+      players: [...team.players, newPlayer]
+    }
+
+    const updatedTeams = teams.map(t => t.id === team.id ? updatedTeam : t)
+    setTeams(updatedTeams)
+    localStorage.setItem('cricketTeams', JSON.stringify(updatedTeams))
+
+    toast.success(`Successfully joined "${team.name}"!`)
+    toast.success('You can now participate in matches with this team!')
+    
+    // Create a notification for the team captain
+    const notifications = JSON.parse(localStorage.getItem('teamNotifications') || '[]')
+    const newNotification = {
+      id: Date.now().toString(),
+      teamId: team.id,
+      teamName: team.name,
+      captainId: team.captainId,
+      message: `${user.name} has joined your team "${team.name}"`,
+      type: 'player_joined',
+      createdAt: new Date(),
+      read: false
+    }
+    notifications.push(newNotification)
+    localStorage.setItem('teamNotifications', JSON.stringify(notifications))
   }
 
   const copyTeamId = (teamId: string) => {
@@ -389,15 +408,9 @@ export default function TeamManagement({ user }: TeamManagementProps) {
       players: editTeamPlayers
     }
 
-    // Update local storage
     const updatedTeams = teams.map(t => t.id === showEditModal.id ? updatedTeam : t)
-    localStorage.setItem('cricketTeams', JSON.stringify(updatedTeams))
-
-    // Update shared storage
-    saveTeamToSharedStorage(updatedTeam)
-
-    // Update state
     setTeams(updatedTeams)
+    localStorage.setItem('cricketTeams', JSON.stringify(updatedTeams))
 
     toast.success(`Team "${editTeamName}" updated successfully!`)
     setShowEditModal(null)
@@ -470,27 +483,8 @@ export default function TeamManagement({ user }: TeamManagementProps) {
     }
   }
 
-  // Debug function to inspect localStorage
-  const debugLocalStorage = () => {
-    console.log('=== LOCALSTORAGE DEBUG ===')
-    
-    const localTeams = JSON.parse(localStorage.getItem('cricketTeams') || '[]')
-    const sharedTeams = JSON.parse(localStorage.getItem('cricketSharedTeams') || '[]')
-    const users = JSON.parse(localStorage.getItem('cricketUsers') || '[]')
-    
-    console.log('Local Teams:', localTeams)
-    console.log('Shared Teams:', sharedTeams)
-    console.log('All Users:', users)
-    console.log('Current User:', user)
-    
-    console.log('Local Team IDs:', localTeams.map((t: Team) => t.id))
-    console.log('Shared Team IDs:', sharedTeams.map((t: Team) => t.id))
-    
-    toast.success('Debug info logged to console. Press F12 to view.')
-  }
-
   return (
-    <div className="space-y-6">
+    <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -501,45 +495,26 @@ export default function TeamManagement({ user }: TeamManagementProps) {
           <h1 className="text-3xl font-bold text-white mb-2">Team Management</h1>
           <p className="text-white">Create, manage, and join cricket teams</p>
         </div>
-        <div className="mt-4 md:mt-0 flex flex-wrap gap-3">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={debugLocalStorage}
-            className="bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-300"
-          >
-            <Bug className="inline w-4 h-4 mr-2" />
-            Debug
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => {
-              loadTeams()
-              toast.success('Teams refreshed!')
-            }}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-300"
-          >
-            <RefreshCw className="inline w-4 h-4 mr-2" />
-            Refresh
-          </motion.button>
+        <div className="mt-4 md:mt-0 flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3">
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowJoinModal(true)}
-            className="bg-cricket-secondary hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-300"
+            className="bg-cricket-secondary hover:bg-green-700 text-white font-semibold py-2 px-3 sm:px-4 rounded-lg transition-all duration-300 text-sm sm:text-base"
           >
             <UserPlus className="inline w-4 h-4 mr-2" />
-            Join Team
+            <span className="hidden xs:inline">Join Team</span>
+            <span className="xs:hidden">Join</span>
           </motion.button>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowCreateModal(true)}
-            className="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-300"
+            className="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-3 sm:px-4 rounded-lg transition-all duration-300 text-sm sm:text-base"
           >
             <Plus className="inline w-4 h-4 mr-2" />
-            Quick Create
+            <span className="hidden xs:inline">Quick Create</span>
+            <span className="xs:hidden">Create</span>
           </motion.button>
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -548,7 +523,8 @@ export default function TeamManagement({ user }: TeamManagementProps) {
             className="btn-primary"
           >
             <MessageCircle className="inline w-4 h-4 mr-2" />
-            Create with Invites
+            <span className="hidden sm:inline">Create with Invites</span>
+            <span className="sm:hidden">Invites</span>
           </motion.button>
         </div>
       </motion.div>
@@ -558,7 +534,7 @@ export default function TeamManagement({ user }: TeamManagementProps) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="card p-6"
+        className="card p-4 sm:p-6"
       >
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
           {/* View Mode Toggle */}
@@ -585,18 +561,23 @@ export default function TeamManagement({ user }: TeamManagementProps) {
             </button>
           </div>
 
-          <span className="text-sm text-gray-600">
-            {filteredTeams.length} teams found
-          </span>
+          <div className="text-sm text-gray-600">
+            <span>{filteredTeams.length} teams found</span>
+            {viewMode === 'all-teams' && (
+              <span className="ml-4 text-green-600">
+                • {filteredTeams.filter(t => t.isPublic && !t.players.some(p => p.userId === user?.id)).length} available to join
+              </span>
+            )}
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
               type="text"
-              placeholder="Search teams..."
+              placeholder="Search teams or captains..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="input-field pl-10"
@@ -618,12 +599,70 @@ export default function TeamManagement({ user }: TeamManagementProps) {
               <option value="Custom">Custom</option>
             </select>
           </div>
+
+          {/* Player Count Filter */}
+          <div className="relative">
+            <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <select
+              value={playerCountFilter}
+              onChange={(e) => setPlayerCountFilter(e.target.value)}
+              className="input-field pl-10 appearance-none"
+            >
+              <option value="all">All Sizes</option>
+              <option value="small">Small (≤5 players)</option>
+              <option value="medium">Medium (6-10 players)</option>
+              <option value="large">Large (11+ players)</option>
+            </select>
+          </div>
+
+          {/* Sort By */}
+          <div className="relative">
+            <Star className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest' | 'most-players' | 'least-players')}
+              className="input-field pl-10 appearance-none"
+            >
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="most-players">Most Players</option>
+              <option value="least-players">Least Players</option>
+            </select>
+          </div>
         </div>
       </motion.div>
 
       {/* Teams Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredTeams.map((team, index) => (
+      {filteredTeams.length === 0 ? (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="card p-8 text-center"
+        >
+          <Shield className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-800 mb-2">
+            {viewMode === 'my-teams' ? 'No teams created yet' : 'No public teams found'}
+          </h3>
+          <p className="text-gray-600 mb-6">
+            {viewMode === 'my-teams' 
+              ? 'Create your first team to start playing cricket matches!' 
+              : 'Try adjusting your search filters or create a new team.'}
+          </p>
+          {viewMode === 'my-teams' && (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowCreateModal(true)}
+              className="btn-primary"
+            >
+              <Plus className="inline w-4 h-4 mr-2" />
+              Create Your First Team
+            </motion.button>
+          )}
+        </motion.div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredTeams.map((team, index) => (
           <motion.div
             key={team.id}
             initial={{ opacity: 0, y: 20 }}
@@ -638,7 +677,11 @@ export default function TeamManagement({ user }: TeamManagementProps) {
                 <div>
                   <h3 className="text-lg font-semibold text-gray-800">{team.name}</h3>
                   <p className="text-sm text-gray-600">
-                    {team.captainId === user?.id ? 'Captain' : 'Member'}
+                    Captain: {registeredUsers.find(u => u.id === team.captainId)?.name || 'Unknown'}
+                    {team.captainId === user?.id && ' (You)'}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Created {new Date(team.createdAt).toLocaleDateString()}
                   </p>
                 </div>
               </div>
@@ -664,17 +707,29 @@ export default function TeamManagement({ user }: TeamManagementProps) {
               </div>
             </div>
 
-            {/* Players Count */}
+            {/* Players Count and Status */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center text-gray-600">
                 <Users className="w-4 h-4 mr-2" />
                 <span className="text-sm">{team.players.length} players</span>
               </div>
-              {team.isPublic && (
-                <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                  Public
-                </span>
-              )}
+              <div className="flex items-center space-x-2">
+                {team.players.some(p => p.userId === user?.id) && (
+                  <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                    Member
+                  </span>
+                )}
+                {team.isPublic && (
+                  <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                    Public
+                  </span>
+                )}
+                {!team.isPublic && (
+                  <span className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">
+                    Private
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Team ID */}
@@ -702,7 +757,7 @@ export default function TeamManagement({ user }: TeamManagementProps) {
                 <Eye className="inline w-4 h-4 mr-1" />
                 View
               </motion.button>
-              {team.captainId === user?.id && (
+              {team.captainId === user?.id ? (
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -712,11 +767,25 @@ export default function TeamManagement({ user }: TeamManagementProps) {
                   <Edit className="inline w-4 h-4 mr-1" />
                   Edit
                 </motion.button>
+              ) : (
+                // Show join button for public teams that user is not a member of
+                viewMode === 'all-teams' && team.isPublic && !team.players.some(p => p.userId === user?.id) && (
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleQuickJoinTeam(team.id)}
+                    className="bg-cricket-secondary hover:bg-green-700 text-white font-medium py-2 px-3 rounded-lg transition-colors text-sm"
+                  >
+                    <UserPlus className="inline w-4 h-4 mr-1" />
+                    Join
+                  </motion.button>
+                )
               )}
             </div>
           </motion.div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Create Team Modal */}
       <AnimatePresence>
@@ -933,7 +1002,7 @@ export default function TeamManagement({ user }: TeamManagementProps) {
                     required
                   />
                   <p className="text-xs text-gray-600 mt-1">
-                    Ask the team captain for the 10-digit team ID. If the team was just created, try clicking the Refresh button first.
+                    Ask the team captain for the 10-digit team ID
                   </p>
                 </div>
 
@@ -1263,7 +1332,7 @@ export default function TeamManagement({ user }: TeamManagementProps) {
           onClose={() => {
             setShowCreateWithInvites(false)
             // Refresh teams list
-            loadTeams()
+            refreshTeams()
           }}
         />
       )}
