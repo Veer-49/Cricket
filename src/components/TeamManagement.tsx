@@ -245,13 +245,29 @@ export default function TeamManagement({ user }: TeamManagementProps) {
   const handleJoinTeam = () => {
     if (!joinTeamId || !user) return
 
-    const team = teams.find(t => t.id === joinTeamId)
+    // Refresh teams from localStorage before searching
+    const currentTeams = JSON.parse(localStorage.getItem('cricketTeams') || '[]')
+    
+    // Normalize the team ID (remove spaces and ensure it's a string)
+    const normalizedTeamId = joinTeamId.trim()
+    
+    // Debug logging
+    console.log('Attempting to join team:', {
+      searchingFor: normalizedTeamId,
+      totalTeams: currentTeams.length,
+      teamIds: currentTeams.map((t: any) => t.id)
+    })
+
+    const team = currentTeams.find((t: any) => t.id === normalizedTeamId)
     if (!team) {
-      toast.error('Team not found!')
+      // More detailed error message
+      const availableTeams = currentTeams.length
+      toast.error(`Team not found! Available teams: ${availableTeams}`)
+      console.log('Available teams:', currentTeams.map((t: any) => ({ id: t.id, name: t.name })))
       return
     }
 
-    if (team.players.some(p => p.userId === user.id)) {
+    if (team.players.some((p: any) => p.userId === user.id)) {
       toast.error('You are already a member of this team!')
       return
     }
@@ -268,18 +284,92 @@ export default function TeamManagement({ user }: TeamManagementProps) {
       players: [...team.players, newPlayer]
     }
 
-    const updatedTeams = teams.map(t => t.id === team.id ? updatedTeam : t)
+    const updatedTeams = currentTeams.map((t: any) => t.id === team.id ? updatedTeam : t)
+    
+    // Update both state and localStorage
     setTeams(updatedTeams)
     localStorage.setItem('cricketTeams', JSON.stringify(updatedTeams))
 
     toast.success(`Successfully joined "${team.name}"!`)
     setJoinTeamId('')
     setShowJoinModal(false)
+    
+    // Refresh the teams list to show the updated team
+    refreshTeams()
   }
 
   const copyTeamId = (teamId: string) => {
     navigator.clipboard.writeText(teamId)
     toast.success('Team ID copied to clipboard!')
+  }
+
+  // Function to export team data for sharing
+  const exportTeamData = (team: Team) => {
+    const teamData = {
+      id: team.id,
+      name: team.name,
+      captainId: team.captainId,
+      players: team.players,
+      matchFormat: team.matchFormat,
+      createdAt: team.createdAt,
+      isPublic: team.isPublic,
+      wins: team.wins,
+      losses: team.losses,
+      draws: team.draws
+    }
+    
+    const dataStr = JSON.stringify(teamData, null, 2)
+    const dataBlob = new Blob([dataStr], { type: 'application/json' })
+    const url = URL.createObjectURL(dataBlob)
+    
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `team-${team.name.replace(/\s+/g, '-').toLowerCase()}-${team.id}.json`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    
+    toast.success('Team data exported! Share this file with team members.')
+  }
+
+  // Function to import team data
+  const importTeamData = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const teamData = JSON.parse(e.target?.result as string)
+        
+        // Validate team data structure
+        if (!teamData.id || !teamData.name || !teamData.players) {
+          toast.error('Invalid team data file!')
+          return
+        }
+
+        // Check if team already exists
+        const existingTeam = teams.find(t => t.id === teamData.id)
+        if (existingTeam) {
+          toast.error('Team already exists in your list!')
+          return
+        }
+
+        // Add the team to localStorage
+        const updatedTeams = [...teams, teamData]
+        setTeams(updatedTeams)
+        localStorage.setItem('cricketTeams', JSON.stringify(updatedTeams))
+        
+        toast.success(`Team "${teamData.name}" imported successfully!`)
+      } catch (error) {
+        toast.error('Failed to import team data. Invalid file format.')
+      }
+    }
+    reader.readAsText(file)
+    
+    // Reset the input
+    event.target.value = ''
   }
 
   const handleEditTeam = (team: Team) => {
@@ -418,6 +508,26 @@ export default function TeamManagement({ user }: TeamManagementProps) {
             <MessageCircle className="inline w-4 h-4 mr-2" />
             Create with Invites
           </motion.button>
+          
+          {/* Import Team Button */}
+          <div className="relative">
+            <input
+              type="file"
+              accept=".json"
+              onChange={importTeamData}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              id="import-team"
+            />
+            <motion.label
+              htmlFor="import-team"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-300 cursor-pointer inline-flex items-center"
+            >
+              <Share2 className="inline w-4 h-4 mr-2" />
+              Import Team
+            </motion.label>
+          </div>
         </div>
       </motion.div>
 
@@ -571,15 +681,27 @@ export default function TeamManagement({ user }: TeamManagementProps) {
                 View
               </motion.button>
               {team.captainId === user?.id && (
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleEditTeam(team)}
-                  className="bg-cricket-primary hover:bg-blue-700 text-white font-medium py-2 px-3 rounded-lg transition-colors text-sm"
-                >
-                  <Edit className="inline w-4 h-4 mr-1" />
-                  Edit
-                </motion.button>
+                <>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => exportTeamData(team)}
+                    className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-3 rounded-lg transition-colors text-sm"
+                    title="Export team data for sharing"
+                  >
+                    <Share2 className="inline w-4 h-4 mr-1" />
+                    Export
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleEditTeam(team)}
+                    className="bg-cricket-primary hover:bg-blue-700 text-white font-medium py-2 px-3 rounded-lg transition-colors text-sm"
+                  >
+                    <Edit className="inline w-4 h-4 mr-1" />
+                    Edit
+                  </motion.button>
+                </>
               )}
             </div>
           </motion.div>
@@ -805,6 +927,18 @@ export default function TeamManagement({ user }: TeamManagementProps) {
                   </p>
                 </div>
 
+                <div className="bg-yellow-50 rounded-lg p-4">
+                  <div className="flex items-center mb-2">
+                    <MessageCircle className="w-5 h-5 text-yellow-600 mr-2" />
+                    <span className="font-medium text-gray-800">Ways to Join a Team</span>
+                  </div>
+                  <div className="text-sm text-gray-600 space-y-2">
+                    <p><strong>Method 1:</strong> Enter the 10-digit Team ID below</p>
+                    <p><strong>Method 2:</strong> Ask the captain to export team data and import it using the "Import Team" button</p>
+                    <p><strong>Note:</strong> Teams are stored locally on each device. If you can't find a team, the captain may need to share the team data file with you.</p>
+                  </div>
+                </div>
+
                 <div className="bg-green-50 rounded-lg p-4">
                   <div className="flex items-center mb-2">
                     <UserPlus className="w-5 h-5 text-green-600 mr-2" />
@@ -812,6 +946,26 @@ export default function TeamManagement({ user }: TeamManagementProps) {
                   </div>
                   <p className="text-sm text-gray-600">
                     You'll be added as a team member and can participate in matches.
+                  </p>
+                </div>
+
+                {/* Debug Section */}
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium text-gray-800">Debug Info</span>
+                    <button
+                      onClick={() => {
+                        const currentTeams = JSON.parse(localStorage.getItem('cricketTeams') || '[]')
+                        console.log('All teams in storage:', currentTeams)
+                        toast.success(`Found ${currentTeams.length} teams. Check console for details.`)
+                      }}
+                      className="text-xs bg-blue-100 hover:bg-blue-200 px-2 py-1 rounded text-blue-800"
+                    >
+                      Check Available Teams
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-600">
+                    If you can't find a team, click the button above to see all available teams in the console.
                   </p>
                 </div>
               </div>

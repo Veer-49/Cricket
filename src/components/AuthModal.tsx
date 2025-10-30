@@ -36,42 +36,13 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
     toast.success('Storage cleared! You can now create new accounts.')
   }
 
-  // Create demo user for testing
-  const createDemoUser = () => {
-    const demoUser = {
-      id: 'demo-user-123',
-      name: 'Demo User',
-      email: 'demo@cricket.com',
-      phone: '+1234567890',
-      password: 'demo123',
-      stats: {
-        totalRuns: 150,
-        totalBalls: 120,
-        fours: 12,
-        sixes: 3,
-        wickets: 5,
-        overallStrikeRate: 125.0,
-        centuries: 0,
-        halfCenturies: 1,
-        hatTricks: 0,
-        matchesPlayed: 3,
-        totalOvers: 8,
-        runsGiven: 45,
-        economyRate: 5.6
-      },
-      createdAt: new Date()
-    }
-    
+  // Check stored users for debugging
+  const checkStoredUsers = () => {
     const users = JSON.parse(localStorage.getItem('cricketUsers') || '[]')
-    const existingDemo = users.find((u: any) => u.email === 'demo@cricket.com')
-    if (!existingDemo) {
-      users.push(demoUser)
-      localStorage.setItem('cricketUsers', JSON.stringify(users))
-      toast.success('Demo user created! Email: demo@cricket.com, Password: demo123')
-    } else {
-      toast.success('Demo user already exists! Email: demo@cricket.com, Password: demo123')
-    }
+    console.log('All stored users:', users)
+    toast.success(`Found ${users.length} users in storage. Check console for details.`)
   }
+
 
   const loginForm = useForm<LoginForm>()
   const signupForm = useForm<SignupForm>()
@@ -82,7 +53,20 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
     // Simulate API call
     setTimeout(() => {
       const users = JSON.parse(localStorage.getItem('cricketUsers') || '[]')
-      const user = users.find((u: any) => u.email === data.email && u.password === data.password)
+      
+      // Normalize input data (trim spaces and convert email to lowercase)
+      const normalizedEmail = data.email.trim().toLowerCase()
+      const normalizedPassword = data.password.trim()
+      
+      // Debug logging
+      console.log('Login attempt:', { email: normalizedEmail, totalUsers: users.length })
+      console.log('Stored users:', users.map((u: any) => ({ email: u.email, hasPassword: !!u.password })))
+      
+      // Find user with case-insensitive email comparison
+      const user = users.find((u: any) => 
+        u.email.toLowerCase().trim() === normalizedEmail && 
+        u.password === normalizedPassword
+      )
       
       if (user) {
         // Remove password from user object before storing
@@ -90,7 +74,15 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
         toast.success('Welcome back!')
         onLogin(userWithoutPassword)
       } else {
-        toast.error('Invalid email or password')
+        // More specific error messages for debugging
+        const emailExists = users.find((u: any) => u.email.toLowerCase().trim() === normalizedEmail)
+        if (emailExists) {
+          toast.error('Invalid password')
+          console.log('Email found but password mismatch')
+        } else {
+          toast.error('Email not found. Please check your email or sign up.')
+          console.log('Email not found in database')
+        }
       }
       setIsLoading(false)
     }, 1000)
@@ -107,7 +99,10 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
     // Simulate API call
     setTimeout(() => {
       const users = JSON.parse(localStorage.getItem('cricketUsers') || '[]')
-      const existingUser = users.find((u: User) => u.email === data.email)
+      
+      // Normalize email for consistency
+      const normalizedEmail = data.email.trim().toLowerCase()
+      const existingUser = users.find((u: User) => u.email.toLowerCase().trim() === normalizedEmail)
       
       if (existingUser) {
         toast.error('User already exists')
@@ -117,10 +112,10 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
 
       const newUser: any = {
         id: uuidv4(),
-        name: data.name,
-        email: data.email,
-        phone: data.phone,
-        password: data.password, // Store password for authentication
+        name: data.name.trim(),
+        email: normalizedEmail,
+        phone: data.phone.trim(),
+        password: data.password.trim(), // Store password for authentication
         stats: {
           totalRuns: 0,
           totalBalls: 0,
@@ -325,10 +320,10 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
         
         <div className="border-t pt-3 space-y-2">
           <button
-            onClick={createDemoUser}
-            className="text-xs text-gray-500 hover:text-gray-700 underline block mx-auto"
+            onClick={checkStoredUsers}
+            className="text-xs text-blue-500 hover:text-blue-700 underline block mx-auto"
           >
-            Create Demo User for Testing
+            Check Stored Users
           </button>
           <button
             onClick={clearStorage}
@@ -336,9 +331,6 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
           >
             Clear Storage (Reset)
           </button>
-          <p className="text-xs text-gray-400 mt-1">
-            Demo Credentials: demo@cricket.com / demo123
-          </p>
         </div>
       </div>
     </motion.div>
