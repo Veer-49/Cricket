@@ -21,7 +21,8 @@ import {
   UserPlus,
   Eye,
   MessageCircle,
-  RefreshCw
+  RefreshCw,
+  Bug
 } from 'lucide-react'
 // Removed uuid import - using custom 10-digit ID generator
 import toast from 'react-hot-toast'
@@ -278,6 +279,15 @@ export default function TeamManagement({ user }: TeamManagementProps) {
     // Update state
     setTeams(updatedTeams)
 
+    console.log('=== TEAM CREATION DEBUG ===')
+    console.log('Created team:', newTeam.name, 'with ID:', newTeam.id)
+    console.log('Team saved to both local and shared storage')
+    
+    // Verify the team was saved
+    const verifyShared = JSON.parse(localStorage.getItem('cricketSharedTeams') || '[]')
+    console.log('Verification - Shared teams count:', verifyShared.length)
+    console.log('Verification - Team exists in shared:', verifyShared.some((t: Team) => t.id === newTeam.id))
+
     toast.success(`Team "${teamName}" created successfully!`)
     toast.success(`Team ID: ${newTeam.id} (copied to clipboard)`)
     navigator.clipboard.writeText(newTeam.id)
@@ -293,16 +303,35 @@ export default function TeamManagement({ user }: TeamManagementProps) {
   const handleJoinTeam = () => {
     if (!joinTeamId || !user) return
 
+    console.log('=== TEAM JOIN DEBUG ===')
+    console.log('Trying to join team ID:', joinTeamId)
+    console.log('Current user:', user.name, user.id)
+
     // Search in both local and shared storage directly
     const localTeams = JSON.parse(localStorage.getItem('cricketTeams') || '[]')
     const sharedTeams = JSON.parse(localStorage.getItem('cricketSharedTeams') || '[]')
     const allTeams = [...localTeams, ...sharedTeams]
     
-    // Find team by ID
-    const team = allTeams.find(t => t.id === joinTeamId)
+    console.log('Local teams count:', localTeams.length)
+    console.log('Shared teams count:', sharedTeams.length)
+    console.log('Total teams count:', allTeams.length)
+    console.log('All team IDs:', allTeams.map(t => t.id))
+    console.log('All team names:', allTeams.map(t => t.name))
+    
+    // Find team by ID (exact match)
+    const team = allTeams.find(t => t.id === joinTeamId.trim())
+    console.log('Found team:', team ? team.name : 'NOT FOUND')
+    
     if (!team) {
       toast.error('Team not found! Please check the Team ID and try again.')
-      console.log('Available team IDs:', allTeams.map(t => t.id))
+      console.log('❌ Team not found. Available team IDs:', allTeams.map(t => t.id))
+      
+      // Check if there's a partial match
+      const partialMatch = allTeams.find(t => t.id.includes(joinTeamId.trim()))
+      if (partialMatch) {
+        console.log('🔍 Partial match found:', partialMatch.id, partialMatch.name)
+        toast.error(`No exact match found. Did you mean team "${partialMatch.name}" (ID: ${partialMatch.id})?`)
+      }
       return
     }
 
@@ -441,6 +470,25 @@ export default function TeamManagement({ user }: TeamManagementProps) {
     }
   }
 
+  // Debug function to inspect localStorage
+  const debugLocalStorage = () => {
+    console.log('=== LOCALSTORAGE DEBUG ===')
+    
+    const localTeams = JSON.parse(localStorage.getItem('cricketTeams') || '[]')
+    const sharedTeams = JSON.parse(localStorage.getItem('cricketSharedTeams') || '[]')
+    const users = JSON.parse(localStorage.getItem('cricketUsers') || '[]')
+    
+    console.log('Local Teams:', localTeams)
+    console.log('Shared Teams:', sharedTeams)
+    console.log('All Users:', users)
+    console.log('Current User:', user)
+    
+    console.log('Local Team IDs:', localTeams.map((t: Team) => t.id))
+    console.log('Shared Team IDs:', sharedTeams.map((t: Team) => t.id))
+    
+    toast.success('Debug info logged to console. Press F12 to view.')
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -454,6 +502,15 @@ export default function TeamManagement({ user }: TeamManagementProps) {
           <p className="text-white">Create, manage, and join cricket teams</p>
         </div>
         <div className="mt-4 md:mt-0 flex flex-wrap gap-3">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={debugLocalStorage}
+            className="bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-300"
+          >
+            <Bug className="inline w-4 h-4 mr-2" />
+            Debug
+          </motion.button>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
