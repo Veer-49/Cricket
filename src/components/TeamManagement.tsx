@@ -37,6 +37,7 @@ export default function TeamManagement({ user }: TeamManagementProps) {
   const [showCreateWithInvites, setShowCreateWithInvites] = useState(false)
   const [showTeamDetails, setShowTeamDetails] = useState<Team | null>(null)
   const [showJoinModal, setShowJoinModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState<Team | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [formatFilter, setFormatFilter] = useState<string>('all')
   const [viewMode, setViewMode] = useState<'my-teams' | 'all-teams'>('my-teams')
@@ -47,30 +48,78 @@ export default function TeamManagement({ user }: TeamManagementProps) {
   const [matchFormat, setMatchFormat] = useState<MatchFormat>('T20')
   const [isPublic, setIsPublic] = useState(true)
   const [selectedPlayers, setSelectedPlayers] = useState<TeamPlayer[]>([])
+  const [selectedUserId, setSelectedUserId] = useState('')
+  const [selectedUserRole, setSelectedUserRole] = useState<PlayerRole>('All-rounder')
 
-  // Mock data for available players
-  const availablePlayers = [
-    { id: '1', name: 'Virat Kohli', role: 'Batsman' as PlayerRole },
-    { id: '2', name: 'Rohit Sharma', role: 'Batsman' as PlayerRole },
-    { id: '3', name: 'Jasprit Bumrah', role: 'Bowler' as PlayerRole },
-    { id: '4', name: 'MS Dhoni', role: 'Wicket-keeper' as PlayerRole },
-    { id: '5', name: 'Hardik Pandya', role: 'All-rounder' as PlayerRole },
-  ]
+  // Edit team form state
+  const [editTeamName, setEditTeamName] = useState('')
+  const [editMatchFormat, setEditMatchFormat] = useState<MatchFormat>('T20')
+  const [editIsPublic, setEditIsPublic] = useState(true)
+  const [editTeamPlayers, setEditTeamPlayers] = useState<TeamPlayer[]>([])
+  const [editSelectedUserId, setEditSelectedUserId] = useState('')
+  const [editSelectedUserRole, setEditSelectedUserRole] = useState<PlayerRole>('All-rounder')
+
+  // Load registered users from localStorage
+  const [registeredUsers, setRegisteredUsers] = useState<User[]>([])
+
+  // Load registered users
+  useEffect(() => {
+    const users = JSON.parse(localStorage.getItem('cricketUsers') || '[]')
+    setRegisteredUsers(users)
+  }, [])
 
   useEffect(() => {
     // Load teams from localStorage
     const savedTeams = JSON.parse(localStorage.getItem('cricketTeams') || '[]')
     setTeams(savedTeams)
+
+    // Add event listener for storage changes (when other tabs modify localStorage)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'cricketTeams') {
+        const updatedTeams = JSON.parse(e.newValue || '[]')
+        setTeams(updatedTeams)
+      }
+    }
+
+    // Add event listener for window focus (refresh when user comes back to tab)
+    const handleWindowFocus = () => {
+      refreshTeams()
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    window.addEventListener('focus', handleWindowFocus)
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('focus', handleWindowFocus)
+    }
   }, [])
+
+  // Add a function to refresh teams from localStorage
+  const refreshTeams = () => {
+    const savedTeams = JSON.parse(localStorage.getItem('cricketTeams') || '[]')
+    setTeams(savedTeams)
+  }
 
   useEffect(() => {
     let filtered = teams
 
+    // Debug logging
+    console.log('Teams filtering:', {
+      totalTeams: teams.length,
+      viewMode,
+      userId: user?.id,
+      searchTerm,
+      formatFilter
+    })
+
     // Filter by view mode
     if (viewMode === 'my-teams') {
       filtered = filtered.filter(team => team.captainId === user?.id)
+      console.log('My teams filtered:', filtered.length)
     } else {
       filtered = filtered.filter(team => team.isPublic)
+      console.log('Public teams filtered:', filtered.length)
     }
 
     // Search filter
@@ -85,6 +134,7 @@ export default function TeamManagement({ user }: TeamManagementProps) {
       filtered = filtered.filter(team => team.matchFormat === formatFilter)
     }
 
+    console.log('Final filtered teams:', filtered.length)
     setFilteredTeams(filtered)
   }, [teams, viewMode, searchTerm, formatFilter, user])
 
@@ -108,6 +158,48 @@ export default function TeamManagement({ user }: TeamManagementProps) {
     }
     
     return newId
+  }
+
+  const handleAddUserToTeam = () => {
+    if (!selectedUserId) return
+
+    const selectedUser = registeredUsers.find(u => u.id === selectedUserId)
+    if (!selectedUser) return
+
+    // Check if user is already selected
+    if (selectedPlayers.some(p => p.userId === selectedUserId)) {
+      toast.error('User is already added to the team!')
+      return
+    }
+
+    // Check if it's the current user (captain)
+    if (selectedUserId === user?.id) {
+      toast.error('You are already the captain of this team!')
+      return
+    }
+
+    const newPlayer: TeamPlayer = {
+      userId: selectedUser.id,
+      name: selectedUser.name,
+      role: selectedUserRole,
+      battingOrder: selectedPlayers.length + 2 // +2 because captain is at position 1
+    }
+
+    setSelectedPlayers([...selectedPlayers, newPlayer])
+    setSelectedUserId('')
+    setSelectedUserRole('All-rounder')
+    toast.success(`${selectedUser.name} added to team!`)
+  }
+
+  const handleRemoveUserFromTeam = (userId: string) => {
+    const updatedPlayers = selectedPlayers.filter(p => p.userId !== userId)
+    // Reorder batting positions
+    const reorderedPlayers = updatedPlayers.map((player, index) => ({
+      ...player,
+      battingOrder: index + 2 // +2 because captain is at position 1
+    }))
+    setSelectedPlayers(reorderedPlayers)
+    toast.success('Player removed from team!')
   }
 
   const handleCreateTeam = () => {
@@ -145,6 +237,8 @@ export default function TeamManagement({ user }: TeamManagementProps) {
     // Reset form
     setTeamName('')
     setSelectedPlayers([])
+    setSelectedUserId('')
+    setSelectedUserRole('All-rounder')
     setShowCreateModal(false)
   }
 
@@ -188,6 +282,84 @@ export default function TeamManagement({ user }: TeamManagementProps) {
     toast.success('Team ID copied to clipboard!')
   }
 
+  const handleEditTeam = (team: Team) => {
+    setEditTeamName(team.name)
+    setEditMatchFormat(team.matchFormat)
+    setEditIsPublic(team.isPublic)
+    setEditTeamPlayers([...team.players])
+    setEditSelectedUserId('')
+    setEditSelectedUserRole('All-rounder')
+    setShowEditModal(team)
+  }
+
+  const handleUpdateTeam = () => {
+    if (!editTeamName || !showEditModal) return
+
+    const updatedTeam = {
+      ...showEditModal,
+      name: editTeamName,
+      matchFormat: editMatchFormat,
+      isPublic: editIsPublic,
+      players: editTeamPlayers
+    }
+
+    const updatedTeams = teams.map(t => t.id === showEditModal.id ? updatedTeam : t)
+    setTeams(updatedTeams)
+    localStorage.setItem('cricketTeams', JSON.stringify(updatedTeams))
+
+    toast.success(`Team "${editTeamName}" updated successfully!`)
+    setShowEditModal(null)
+  }
+
+  const handleAddPlayerToEditTeam = () => {
+    if (!editSelectedUserId) return
+
+    const selectedUser = registeredUsers.find(u => u.id === editSelectedUserId)
+    if (!selectedUser) return
+
+    // Check if user is already in the team
+    if (editTeamPlayers.some(p => p.userId === editSelectedUserId)) {
+      toast.error('User is already in the team!')
+      return
+    }
+
+    const newPlayer: TeamPlayer = {
+      userId: selectedUser.id,
+      name: selectedUser.name,
+      role: editSelectedUserRole,
+      battingOrder: editTeamPlayers.length + 1
+    }
+
+    setEditTeamPlayers([...editTeamPlayers, newPlayer])
+    setEditSelectedUserId('')
+    setEditSelectedUserRole('All-rounder')
+    toast.success(`${selectedUser.name} added to team!`)
+  }
+
+  const handleRemovePlayer = (playerId: string) => {
+    if (playerId === user?.id) {
+      toast.error('Cannot remove yourself as captain!')
+      return
+    }
+
+    const updatedPlayers = editTeamPlayers.filter(p => p.userId !== playerId)
+    // Reorder batting positions
+    const reorderedPlayers = updatedPlayers.map((player, index) => ({
+      ...player,
+      battingOrder: index + 1
+    }))
+    
+    setEditTeamPlayers(reorderedPlayers)
+    toast.success('Player removed from team!')
+  }
+
+  const handlePlayerRoleChange = (playerId: string, newRole: PlayerRole) => {
+    const updatedPlayers = editTeamPlayers.map(player =>
+      player.userId === playerId ? { ...player, role: newRole } : player
+    )
+    setEditTeamPlayers(updatedPlayers)
+  }
+
   const getFormatIcon = (format: MatchFormat) => {
     switch (format) {
       case 'T20': return <Clock className="w-4 h-4" />
@@ -215,8 +387,8 @@ export default function TeamManagement({ user }: TeamManagementProps) {
         className="flex flex-col md:flex-row md:items-center md:justify-between"
       >
         <div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Team Management</h1>
-          <p className="text-gray-600">Create, manage, and join cricket teams</p>
+          <h1 className="text-3xl font-bold text-white mb-2">Team Management</h1>
+          <p className="text-white">Create, manage, and join cricket teams</p>
         </div>
         <div className="mt-4 md:mt-0 flex flex-wrap gap-3">
           <motion.button
@@ -402,6 +574,7 @@ export default function TeamManagement({ user }: TeamManagementProps) {
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
+                  onClick={() => handleEditTeam(team)}
                   className="bg-cricket-primary hover:bg-blue-700 text-white font-medium py-2 px-3 rounded-lg transition-colors text-sm"
                 >
                   <Edit className="inline w-4 h-4 mr-1" />
@@ -473,13 +646,106 @@ export default function TeamManagement({ user }: TeamManagementProps) {
                   </label>
                 </div>
 
+                {/* Add Team Members */}
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-gray-700">Add Team Members</label>
+                  <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <select
+                        value={selectedUserId}
+                        onChange={(e) => setSelectedUserId(e.target.value)}
+                        className="input-field text-sm"
+                      >
+                        <option value="">Select a registered user</option>
+                        {registeredUsers
+                          .filter(regUser => regUser.id !== user?.id) // Exclude current user
+                          .filter(regUser => !selectedPlayers.some(p => p.userId === regUser.id)) // Exclude already selected
+                          .map(regUser => (
+                            <option key={regUser.id} value={regUser.id}>
+                              {regUser.name} ({regUser.email})
+                            </option>
+                          ))
+                        }
+                      </select>
+                      <select
+                        value={selectedUserRole}
+                        onChange={(e) => setSelectedUserRole(e.target.value as PlayerRole)}
+                        className="input-field text-sm"
+                      >
+                        <option value="Batsman">Batsman</option>
+                        <option value="Bowler">Bowler</option>
+                        <option value="All-rounder">All-rounder</option>
+                        <option value="Wicket-keeper">Wicket-keeper</option>
+                      </select>
+                    </div>
+                    <button
+                      onClick={handleAddUserToTeam}
+                      disabled={!selectedUserId}
+                      className="w-full bg-cricket-secondary hover:bg-green-700 text-white font-medium py-2 px-3 rounded-lg transition-colors text-sm disabled:opacity-50"
+                    >
+                      <UserPlus className="inline w-4 h-4 mr-1" />
+                      Add User to Team
+                    </button>
+                  </div>
+
+                  {/* Selected Players List */}
+                  {selectedPlayers.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-gray-700">Selected Players ({selectedPlayers.length + 1}):</p>
+                      
+                      {/* Captain (You) */}
+                      <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-2">
+                        <div className="flex items-center">
+                          <div className="w-6 h-6 bg-cricket-primary rounded-full flex items-center justify-center text-white font-semibold text-xs mr-2">
+                            {user?.name.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-800 text-sm flex items-center">
+                              {user?.name} (You)
+                              <Crown className="w-3 h-3 text-yellow-600 ml-1" />
+                            </p>
+                            <p className="text-xs text-gray-600">All-rounder</p>
+                          </div>
+                        </div>
+                        <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">#1</span>
+                      </div>
+
+                      {/* Selected Players */}
+                      {selectedPlayers.map((player) => (
+                        <div key={player.userId} className="flex items-center justify-between bg-white border rounded-lg p-2">
+                          <div className="flex items-center">
+                            <div className="w-6 h-6 bg-cricket-primary rounded-full flex items-center justify-center text-white font-semibold text-xs mr-2">
+                              {player.name.charAt(0)}
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-800 text-sm">{player.name}</p>
+                              <p className="text-xs text-gray-600">{player.role}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
+                              #{player.battingOrder}
+                            </span>
+                            <button
+                              onClick={() => handleRemoveUserFromTeam(player.userId)}
+                              className="p-1 hover:bg-red-100 rounded text-red-600 transition-colors"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <div className="bg-blue-50 rounded-lg p-4">
                   <div className="flex items-center mb-2">
                     <Crown className="w-5 h-5 text-yellow-600 mr-2" />
                     <span className="font-medium text-gray-800">You will be the captain</span>
                   </div>
                   <p className="text-sm text-gray-600">
-                    As captain, you can manage team members, edit team details, and organize matches.
+                    As captain, you can manage team members, edit team details, and organize matches. Only registered users can be added to teams.
                   </p>
                 </div>
               </div>
@@ -487,7 +753,7 @@ export default function TeamManagement({ user }: TeamManagementProps) {
               <div className="flex space-x-4 mt-6">
                 <button
                   onClick={() => setShowCreateModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-black font-medium"
                 >
                   Cancel
                 </button>
@@ -553,7 +819,7 @@ export default function TeamManagement({ user }: TeamManagementProps) {
               <div className="flex space-x-4 mt-6">
                 <button
                   onClick={() => setShowJoinModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-black font-medium"
                 >
                   Cancel
                 </button>
@@ -675,6 +941,189 @@ export default function TeamManagement({ user }: TeamManagementProps) {
         )}
       </AnimatePresence>
 
+      {/* Edit Team Modal */}
+      <AnimatePresence>
+        {showEditModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+            >
+              <h3 className="text-2xl font-bold text-gray-800 mb-6">Edit Team</h3>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Team Details Section */}
+                <div className="space-y-4">
+                  <h4 className="text-lg font-semibold text-gray-800 mb-4">Team Details</h4>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Team Name</label>
+                    <input
+                      type="text"
+                      value={editTeamName}
+                      onChange={(e) => setEditTeamName(e.target.value)}
+                      placeholder="Enter team name"
+                      className="input-field"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Match Format</label>
+                    <select
+                      value={editMatchFormat}
+                      onChange={(e) => setEditMatchFormat(e.target.value as MatchFormat)}
+                      className="input-field"
+                    >
+                      <option value="T20">T20</option>
+                      <option value="ODI">ODI</option>
+                      <option value="Test">Test</option>
+                      <option value="Custom">Custom</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="editIsPublic"
+                      checked={editIsPublic}
+                      onChange={(e) => setEditIsPublic(e.target.checked)}
+                      className="mr-3"
+                    />
+                    <label htmlFor="editIsPublic" className="text-sm text-gray-700">
+                      Make team public (others can find and join)
+                    </label>
+                  </div>
+
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <div className="flex items-center mb-2">
+                      <Crown className="w-5 h-5 text-yellow-600 mr-2" />
+                      <span className="font-medium text-gray-800">Team ID: {showEditModal.id}</span>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      Team ID cannot be changed. Share this with players to join your team.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Team Members Section */}
+                <div className="space-y-4">
+                  <h4 className="text-lg font-semibold text-gray-800 mb-4">Team Members ({editTeamPlayers.length})</h4>
+                  
+                  {/* Add Registered User */}
+                  <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                    <h5 className="font-medium text-gray-800">Add Registered User</h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <select
+                        value={editSelectedUserId}
+                        onChange={(e) => setEditSelectedUserId(e.target.value)}
+                        className="input-field text-sm"
+                      >
+                        <option value="">Select a registered user</option>
+                        {registeredUsers
+                          .filter(regUser => !editTeamPlayers.some(p => p.userId === regUser.id)) // Exclude already in team
+                          .map(regUser => (
+                            <option key={regUser.id} value={regUser.id}>
+                              {regUser.name} ({regUser.email})
+                            </option>
+                          ))
+                        }
+                      </select>
+                      <select
+                        value={editSelectedUserRole}
+                        onChange={(e) => setEditSelectedUserRole(e.target.value as PlayerRole)}
+                        className="input-field text-sm"
+                      >
+                        <option value="Batsman">Batsman</option>
+                        <option value="Bowler">Bowler</option>
+                        <option value="All-rounder">All-rounder</option>
+                        <option value="Wicket-keeper">Wicket-keeper</option>
+                      </select>
+                    </div>
+                    <button
+                      onClick={handleAddPlayerToEditTeam}
+                      disabled={!editSelectedUserId}
+                      className="w-full bg-cricket-primary hover:bg-blue-700 text-white font-medium py-2 px-3 rounded-lg transition-colors text-sm disabled:opacity-50"
+                    >
+                      <UserPlus className="inline w-4 h-4 mr-1" />
+                      Add User to Team
+                    </button>
+                  </div>
+
+                  {/* Current Players List */}
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {editTeamPlayers.map((player, index) => (
+                      <div key={player.userId} className="flex items-center justify-between bg-white border rounded-lg p-3">
+                        <div className="flex items-center">
+                          <div className="w-8 h-8 bg-cricket-primary rounded-full flex items-center justify-center text-white font-semibold text-sm mr-3">
+                            {player.name.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-800 text-sm flex items-center">
+                              {player.name}
+                              {player.userId === showEditModal.captainId && (
+                                <Crown className="w-3 h-3 text-yellow-600 ml-1" />
+                              )}
+                            </p>
+                            <select
+                              value={player.role}
+                              onChange={(e) => handlePlayerRoleChange(player.userId, e.target.value as PlayerRole)}
+                              className="text-xs text-gray-600 bg-transparent border-none p-0 focus:ring-0"
+                              disabled={player.userId === user?.id}
+                            >
+                              <option value="Batsman">Batsman</option>
+                              <option value="Bowler">Bowler</option>
+                              <option value="All-rounder">All-rounder</option>
+                              <option value="Wicket-keeper">Wicket-keeper</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
+                            #{player.battingOrder}
+                          </span>
+                          {player.userId !== user?.id && (
+                            <button
+                              onClick={() => handleRemovePlayer(player.userId)}
+                              className="p-1 hover:bg-red-100 rounded text-red-600 transition-colors"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex space-x-4 mt-6">
+                <button
+                  onClick={() => setShowEditModal(null)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-black font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpdateTeam}
+                  disabled={!editTeamName}
+                  className="flex-1 btn-primary disabled:opacity-50"
+                >
+                  Update Team
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Team Creation with Invites Modal */}
       {showCreateWithInvites && (
         <TeamCreationWithInvites
@@ -682,8 +1131,7 @@ export default function TeamManagement({ user }: TeamManagementProps) {
           onClose={() => {
             setShowCreateWithInvites(false)
             // Refresh teams list
-            const savedTeams = JSON.parse(localStorage.getItem('cricketTeams') || '[]')
-            setTeams(savedTeams)
+            refreshTeams()
           }}
         />
       )}
