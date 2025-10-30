@@ -234,6 +234,10 @@ export default function TeamCreationWithInvites({ user, onClose }: TeamCreationW
       localStorage.setItem('cricketPlayers', JSON.stringify([...existingPlayers, ...players]))
       localStorage.setItem('cricketTeamPlayerMaps', JSON.stringify([...existingMappings, ...teamPlayerMaps]))
       localStorage.setItem('cricketWhatsAppInvites', JSON.stringify([...existingInvites, ...invites]))
+
+      // Also save to shared storage for cross-device access
+      const existingSharedTeams = JSON.parse(localStorage.getItem('cricketSharedTeams') || '[]')
+      localStorage.setItem('cricketSharedTeams', JSON.stringify([...existingSharedTeams, newTeam]))
       
       setTeamCreated(newTeam)
       setInvitesSent(invites)
