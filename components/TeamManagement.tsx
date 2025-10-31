@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { User, Team, TeamPlayer, MatchFormat, PlayerRole, BowlingType } from '@/types'
+import { User, Team, TeamPlayer, MatchFormat, PlayerRole, BowlingType } from '../types'
 import { 
   Shield, 
   Plus, 
@@ -157,7 +157,7 @@ export default function TeamManagement({ user }: TeamManagementProps) {
       return
     }
 
-    if (team.players.some(p => p.userId === user.id)) {
+    if (team.players.some((p: TeamPlayer) => p.userId === user.id)) {
       toast.error('You are already a member of this team!')
       return
     }
@@ -624,7 +624,7 @@ export default function TeamManagement({ user }: TeamManagementProps) {
               <div>
                 <h4 className="text-lg font-semibold text-gray-800 mb-4">Team Players ({showTeamDetails.players.length})</h4>
                 <div className="space-y-3">
-                  {showTeamDetails.players.map((player, index) => (
+                  {showTeamDetails.players.map((player: TeamPlayer, index: number) => (
                     <div key={player.userId} className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
                       <div className="flex items-center">
                         <div className="w-10 h-10 bg-cricket-primary rounded-full flex items-center justify-center text-white font-semibold mr-3">

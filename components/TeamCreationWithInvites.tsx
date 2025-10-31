@@ -10,7 +10,7 @@ import {
   WhatsAppInvite, 
   MatchFormat, 
   PlayerRole 
-} from '@/types'
+} from '../types'
 import { 
   Shield, 
   Plus, 

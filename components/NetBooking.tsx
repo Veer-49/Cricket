@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { User, PracticeNet, Booking } from '@/types'
+import { User, PracticeNet, Booking } from '../types'
 import { 
   MapPin, 
   Star, 
@@ -297,7 +297,7 @@ export default function NetBooking({ user }: NetBookingProps) {
 
               {/* Facilities */}
               <div className="flex flex-wrap gap-2 mb-4">
-                {net.facilities.slice(0, 3).map((facility) => (
+                {net.facilities.slice(0, 3).map((facility: string) => (
                   <div key={facility} className="flex items-center bg-orange-100 text-orange-800 rounded-full px-3 py-1">
                     {getFacilityIcon(facility)}
                     <span className="text-xs ml-1">{facility}</span>
@@ -404,7 +404,7 @@ export default function NetBooking({ user }: NetBookingProps) {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Facilities</label>
                   <div className="flex flex-wrap gap-2">
-                    {selectedNet.facilities.map((facility) => (
+                    {selectedNet.facilities.map((facility: string) => (
                       <div key={facility} className="flex items-center bg-orange-100 text-orange-800 rounded-full px-3 py-1">
                         {getFacilityIcon(facility)}
                         <span className="text-xs ml-1">{facility}</span>

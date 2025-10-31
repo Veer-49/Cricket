@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { User, Match, Team, Innings, BatsmanStats, BowlerStats, MatchFormat, DismissalType } from '@/types'
+import { User, Match, Team, Innings, BatsmanStats, BowlerStats, MatchFormat, DismissalType } from '../types'
 import { 
   Play, 
   Pause, 
@@ -240,7 +240,7 @@ export default function ScoringSystem({ user }: ScoringSystemProps) {
 
     const updatedMatch = {
       ...activeMatch,
-      innings: activeMatch.innings.map((innings, index) => 
+      innings: activeMatch.innings.map((innings: Innings, index: number) => 
         index === 0 ? {
           ...innings,
           runs,
