@@ -470,7 +470,7 @@ export default function ScoringSystem({ user }: ScoringSystemProps) {
                 <div className="flex space-x-4 mt-6">
                   <button
                     onClick={() => setShowCreateMatch(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-black font-medium bg-white"
                   >
                     Cancel
                   </button>

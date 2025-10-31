@@ -612,7 +612,7 @@ export default function TeamCreationWithInvites({ user, onClose }: TeamCreationW
         <div className="flex justify-between mt-8">
           <button
             onClick={() => step > 1 ? setStep(step - 1) : onClose()}
-            className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-black font-medium bg-white"
           >
             {step === 1 ? 'Cancel' : 'Back'}
           </button>

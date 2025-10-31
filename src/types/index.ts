@@ -90,6 +90,8 @@ export interface Team {
   wins: number
   losses: number
   draws: number
+  shortCode?: string
+  joinUrl?: string
 }
 
 export interface TeamPlayer {

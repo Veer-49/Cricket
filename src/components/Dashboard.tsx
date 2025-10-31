@@ -10,7 +10,7 @@ import GroundBooking from './GroundBooking'
 import CoachBooking from './CoachBooking'
 import UmpireBooking from './UmpireBooking'
 import NetBooking from './NetBooking'
-import TeamManagement from './TeamManagement'
+import TeamManagementFirebase from './TeamManagementFirebase'
 import CricketScoring from './CricketScoring'
 import MatchHistory from './MatchHistory'
 import UserProfile from './UserProfile'
@@ -42,7 +42,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       case 'nets':
         return <NetBooking user={user} />
       case 'teams':
-        return <TeamManagement user={user} />
+        return <TeamManagementFirebase user={user} />
       case 'scoring':
         return <CricketScoring teams={teams} user={user} />
       case 'matches':
