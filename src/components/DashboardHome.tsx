@@ -13,8 +13,11 @@ import {
   Calendar,
   Trophy,
   TrendingUp,
-  Activity
+  Activity,
+  Bell
 } from 'lucide-react'
+import { TestNotifications } from '../services/testNotifications'
+import toast from 'react-hot-toast'
 
 interface DashboardHomeProps {
   user: User | null
@@ -104,6 +107,29 @@ export default function DashboardHome({ user, setActiveSection }: DashboardHomeP
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold mb-2">Welcome back, {user?.name}! 🏏</h1>
             <p className="text-blue-100 text-base sm:text-lg">Ready to play some cricket today?</p>
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => {
+                  if (user) {
+                    TestNotifications.testBasicNotification(user.id)
+                    toast.success('Testing notifications - check console!')
+                  }
+                }}
+                className="bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                <Bell className="w-4 h-4" />
+                Test Notifications
+              </button>
+              <button
+                onClick={() => {
+                  TestNotifications.checkSetupStatus()
+                  toast.success('Check console for setup status')
+                }}
+                className="bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded-lg text-sm font-medium transition-colors"
+              >
+                Debug Setup
+              </button>
+            </div>
           </div>
           <motion.div
             animate={{ scale: [1, 1.1, 1] }}

@@ -15,6 +15,7 @@ import TeamManagementFirebase from './TeamManagementFirebase'
 import CricketScoring from './CricketScoring'
 import MatchHistory from './MatchHistory'
 import UserProfile from './UserProfile'
+import { TestNotifications } from '../services/testNotifications'
 
 interface DashboardProps {
   user: User | null

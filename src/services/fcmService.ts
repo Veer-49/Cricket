@@ -45,10 +45,10 @@ export class FCMService {
       })
 
       if (token) {
-        console.log('FCM Registration token:', token)
+        console.log('✅ FCM Registration token obtained:', token)
         return token
       } else {
-        console.warn('No registration token available')
+        console.warn('❌ No registration token available')
         return null
       }
     } catch (error) {
