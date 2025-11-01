@@ -116,7 +116,7 @@ export default function Navbar({ user, onLogout, onMenuClick }: NavbarProps) {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={() => setShowQRScanner(true)}
-              className="p-2 text-white hover:text-royal-gold hover:bg-white/20 rounded-full transition-colors"
+              className="p-2 text-white hover:text-royal-gold hover:bg-white/20 rounded-full transition-colors mt-2"
               title="Scan QR Code to Join Team"
             >
               <QrCode className="w-5 h-5 sm:w-6 sm:h-6" />

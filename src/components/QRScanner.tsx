@@ -118,7 +118,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="bg-white rounded-xl shadow-xl w-full max-w-md mx-auto relative max-h-[95vh] overflow-hidden"
+          className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-auto relative max-h-[95vh] overflow-hidden"
         >
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b">
@@ -163,12 +163,13 @@ export const QRScanner: React.FC<QRScannerProps> = ({
             ) : (
               <div className="space-y-4">
                 {/* Video Preview */}
-                <div className="relative bg-black rounded-lg overflow-hidden aspect-square">
+                <div className="relative bg-black rounded-lg overflow-hidden h-[400px]">
                   <video
                     ref={videoRef}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                     playsInline
                     muted
+                    style={{ transform: 'scaleX(-1)' }}
                   />
                   
                   {/* Close Button Overlay */}
@@ -180,8 +181,8 @@ export const QRScanner: React.FC<QRScannerProps> = ({
                   </button>
                   
                   {/* Scanning Overlay */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-56 h-56 border-2 border-white rounded-lg relative">
+                  <div className="absolute inset-0 flex items-center justify-center p-6">
+                    <div className="w-64 h-64 border-2 border-white rounded-lg relative">
                       <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-cricket-primary rounded-tl-lg"></div>
                       <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-cricket-primary rounded-tr-lg"></div>
                       <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-cricket-primary rounded-bl-lg"></div>
@@ -200,7 +201,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
                         repeatType: 'reverse',
                         ease: 'linear'
                       }}
-                      className="absolute left-1/2 transform -translate-x-1/2 w-56 h-0.5 bg-cricket-primary shadow-lg"
+                      className="absolute left-1/2 transform -translate-x-1/2 w-64 h-0.5 bg-cricket-primary shadow-lg"
                     />
                   )}
 

@@ -4,13 +4,13 @@ import { getAuth } from 'firebase/auth'
 
 // Firebase configuration
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyBr3kBbnZ35l7Tp7eoyzhHFJiaIab2Zopg",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "cricket-team-manager-5ef78.firebaseapp.com",
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || "https://cricket-team-manager-5ef78-default-rtdb.asia-southeast1.firebasedatabase.app/",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "cricket-team-manager-5ef78",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "cricket-team-manager-5ef78.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "590004782129",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:590004782129:web:3f984d423998a1532b4110"
 }
 
 // Initialize Firebase
