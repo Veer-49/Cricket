@@ -228,9 +228,17 @@ export class FirebaseService {
   // Migrate localStorage data to Firebase (one-time migration)
   static async migrateLocalStorageToFirebase(): Promise<void> {
     try {
+      // Check if migration has already been completed
+      const migrationCompleted = localStorage.getItem('firebaseMigrationCompleted')
+      if (migrationCompleted === 'true') {
+        return
+      }
+
       const localTeams = JSON.parse(localStorage.getItem('cricketTeams') || '[]') as Team[]
       
       if (localTeams.length === 0) {
+        // Mark migration as completed even if no teams to migrate
+        localStorage.setItem('firebaseMigrationCompleted', 'true')
         return
       }
 
@@ -258,8 +266,11 @@ export class FirebaseService {
 
       console.log('Migration completed successfully')
       
-      // Optionally clear localStorage after successful migration
-      // localStorage.removeItem('cricketTeams')
+      // Mark migration as completed
+      localStorage.setItem('firebaseMigrationCompleted', 'true')
+      
+      // Clear localStorage after successful migration
+      localStorage.removeItem('cricketTeams')
     } catch (error) {
       console.error('Error migrating data:', error)
       throw new Error('Failed to migrate data to Firebase')

@@ -102,7 +102,7 @@ export const TeamSharingModal: React.FC<TeamSharingModalProps> = ({
             <h3 className="text-xl font-bold text-gray-900">Share Team</h3>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-600 hover:text-gray-800"
             >
               <X className="w-5 h-5" />
             </button>

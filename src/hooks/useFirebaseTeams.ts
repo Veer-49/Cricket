@@ -16,15 +16,18 @@ export const useFirebaseTeams = () => {
       try {
         setLoading(true)
         
-        // Try to migrate localStorage data first
-        await FirebaseService.migrateLocalStorageToFirebase()
-        
-        // Set up real-time listener
+        // Set up real-time listener first for faster loading
         unsubscribe = FirebaseService.onTeamsChange((updatedTeams) => {
           setTeams(updatedTeams)
           setLoading(false)
           setError(null)
         })
+        
+        // Run migration in background (non-blocking)
+        FirebaseService.migrateLocalStorageToFirebase().catch(err => {
+          console.warn('Migration failed (non-critical):', err)
+        })
+        
       } catch (err) {
         console.error('Error initializing teams:', err)
         setError('Failed to load teams')
