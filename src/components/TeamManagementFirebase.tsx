@@ -357,7 +357,7 @@ export default function TeamManagementFirebase({ user }: TeamManagementProps) {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowJoinModal(true)}
-            className="bg-cricket-secondary hover:bg-green-700 text-white font-semibold py-2 px-3 sm:px-4 rounded-lg transition-all duration-300 text-sm sm:text-base"
+            className="bg-cricket-secondary hover:bg-green-700 text-white font-semibold py-2 px-3 sm:px-4 rounded-lg transition-all duration-300 text-sm sm:text-base flex items-center whitespace-nowrap"
           >
             <UserPlus className="inline w-4 h-4 mr-2" />
             <span className="hidden xs:inline">Join Team</span>
@@ -367,7 +367,7 @@ export default function TeamManagementFirebase({ user }: TeamManagementProps) {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowCreateModal(true)}
-            className="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-3 sm:px-4 rounded-lg transition-all duration-300 text-sm sm:text-base"
+            className="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-3 sm:px-4 rounded-lg transition-all duration-300 text-sm sm:text-base flex items-center whitespace-nowrap"
           >
             <Plus className="inline w-4 h-4 mr-2" />
             <span className="hidden xs:inline">Quick Create</span>
@@ -377,7 +377,7 @@ export default function TeamManagementFirebase({ user }: TeamManagementProps) {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowCreateWithInvites(true)}
-            className="btn-primary"
+            className="bg-cricket-primary hover:bg-cricket-secondary text-white font-semibold py-2 px-3 sm:px-4 rounded-lg transition-all duration-300 text-sm sm:text-base flex items-center whitespace-nowrap"
           >
             <MessageCircle className="inline w-4 h-4 mr-2" />
             <span className="hidden sm:inline">Create with Invites</span>
@@ -617,13 +617,15 @@ export default function TeamManagementFirebase({ user }: TeamManagementProps) {
               : 'Be the first to create a public team!'
             }
           </p>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="btn-primary"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Create Team
-          </button>
+          <div className="flex justify-center">
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="bg-cricket-primary hover:bg-cricket-secondary text-white font-semibold py-2 px-4 rounded-lg transition-all duration-300 flex items-center whitespace-nowrap"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Create Team
+            </button>
+          </div>
         </motion.div>
       )}
 
