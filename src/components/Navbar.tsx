@@ -11,9 +11,10 @@ interface NavbarProps {
   user: User | null
   onLogout: () => void
   onMenuClick: () => void
+  onJoinTeam?: (teamIdOrCode: string, user: User) => Promise<boolean>
 }
 
-export default function Navbar({ user, onLogout, onMenuClick }: NavbarProps) {
+export default function Navbar({ user, onLogout, onMenuClick, onJoinTeam }: NavbarProps) {
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [showQRScanner, setShowQRScanner] = useState(false)
 
@@ -194,6 +195,8 @@ export default function Navbar({ user, onLogout, onMenuClick }: NavbarProps) {
         isOpen={showQRScanner}
         onClose={() => setShowQRScanner(false)}
         onScanSuccess={handleQRScanSuccess}
+        user={user}
+        onJoinTeam={onJoinTeam}
       />
     </motion.nav>
   )

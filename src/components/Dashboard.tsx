@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { User } from '@/types'
+import { useFirebaseTeams } from '../hooks/useFirebaseTeams'
 import Navbar from './Navbar'
 import Sidebar from './Sidebar'
 import DashboardHome from './DashboardHome'
@@ -25,6 +26,7 @@ export type ActiveSection = 'home' | 'grounds' | 'coaches' | 'umpires' | 'nets' 
 export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [activeSection, setActiveSection] = useState<ActiveSection>('home')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { joinTeam } = useFirebaseTeams()
 
   const renderActiveSection = () => {
     // Get teams from localStorage for cricket scoring
@@ -60,6 +62,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
         user={user} 
         onLogout={onLogout}
         onMenuClick={() => setSidebarOpen(!sidebarOpen)}
+        onJoinTeam={joinTeam}
       />
       
       <div className="flex">
