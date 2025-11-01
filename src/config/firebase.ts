@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app'
 import { getDatabase } from 'firebase/database'
 import { getAuth } from 'firebase/auth'
+import { getMessaging, isSupported } from 'firebase/messaging'
 
 // Firebase configuration
 const firebaseConfig = {
@@ -19,4 +20,16 @@ const app = initializeApp(firebaseConfig)
 // Initialize Firebase services
 export const database = getDatabase(app)
 export const auth = getAuth(app)
+
+// Initialize Firebase Cloud Messaging (only if supported)
+let messaging: any = null
+if (typeof window !== 'undefined') {
+  isSupported().then((supported) => {
+    if (supported) {
+      messaging = getMessaging(app)
+    }
+  })
+}
+
+export { messaging }
 export default app

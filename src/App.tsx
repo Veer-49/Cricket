@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast'
 import AuthModal from '@/components/AuthModal'
 import Dashboard from '@/components/Dashboard'
 import { User } from '@/types'
+import { FCMService } from '@/services/fcmService'
 
 function App() {
   const [user, setUser] = useState<User | null>(null)
@@ -17,6 +18,13 @@ function App() {
       setShowAuth(false)
     }
   }, [])
+
+  // Initialize FCM when user logs in
+  useEffect(() => {
+    if (user) {
+      FCMService.initializeForUser(user.id)
+    }
+  }, [user])
 
   const handleLogin = (userData: User) => {
     setUser(userData)

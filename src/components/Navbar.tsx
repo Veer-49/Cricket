@@ -2,10 +2,11 @@
 
 import { motion } from 'framer-motion'
 import { User } from '@/types'
-import { Menu, Bell, Search, LogOut, User as UserIcon, QrCode } from 'lucide-react'
-import { useState } from 'react'
+import { Menu, Bell, Search, LogOut, User as UserIcon, QrCode, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
 import { QRScanner } from './QRScanner'
 import toast from 'react-hot-toast'
+import { NotificationService } from '@/services/notificationService'
 
 interface NavbarProps {
   user: User | null
@@ -14,9 +15,56 @@ interface NavbarProps {
   onJoinTeam?: (teamIdOrCode: string, user: User) => Promise<boolean>
 }
 
+interface Notification {
+  id: string
+  type: 'match_start' | 'team_join' | 'match_invite'
+  title: string
+  message: string
+  teamId?: string
+  matchId?: string
+  createdAt: Date
+  read: boolean
+}
+
 export default function Navbar({ user, onLogout, onMenuClick, onJoinTeam }: NavbarProps) {
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [showQRScanner, setShowQRScanner] = useState(false)
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  // Load notifications on component mount
+  useEffect(() => {
+    loadNotifications()
+    
+    // Set up interval to check for new notifications
+    const interval = setInterval(loadNotifications, 5000) // Check every 5 seconds
+    
+    return () => clearInterval(interval)
+  }, [user])
+
+  const loadNotifications = () => {
+    if (!user) return
+    
+    try {
+      const userNotifications = NotificationService.getUserNotifications(user.id)
+      setNotifications(userNotifications)
+      setUnreadCount(userNotifications.filter(notif => !notif.read).length)
+    } catch (error) {
+      console.error('Error loading notifications:', error)
+    }
+  }
+
+  const markAsRead = (notificationId: string) => {
+    NotificationService.markAsRead(notificationId)
+    loadNotifications() // Reload to get updated state
+  }
+
+  const markAllAsRead = () => {
+    if (!user) return
+    NotificationService.markAllAsRead(user.id)
+    loadNotifications() // Reload to get updated state
+  }
 
   const handleQRScanSuccess = (result: string) => {
     try {
@@ -124,17 +172,85 @@ export default function Navbar({ user, onLogout, onMenuClick, onJoinTeam }: Navb
             </motion.button>
             
             {/* Notifications */}
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              className="relative p-2 text-white hover:text-royal-gold hover:bg-white/20 rounded-full transition-colors"
-            >
-              <Bell className="w-5 h-5 sm:w-6 sm:h-6" />
-              <span className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 bg-cricket-primary text-white text-xs rounded-full flex items-center justify-center">
-                <span className="hidden sm:inline">3</span>
-                <span className="sm:hidden w-2 h-2 bg-white rounded-full"></span>
-              </span>
-            </motion.button>
+            <div className="relative">
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="relative p-2 text-white hover:text-royal-gold hover:bg-white/20 rounded-full transition-colors"
+              >
+                <Bell className="w-5 h-5 sm:w-6 sm:h-6" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                    <span className="hidden sm:inline">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                    <span className="sm:hidden w-2 h-2 bg-white rounded-full"></span>
+                  </span>
+                )}
+              </motion.button>
+
+              {/* Notification Dropdown */}
+              {showNotifications && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50"
+                >
+                  <div className="p-4 border-b border-gray-200">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-lg font-semibold text-gray-800">Notifications</h3>
+                      <div className="flex gap-2">
+                        {unreadCount > 0 && (
+                          <button
+                            onClick={markAllAsRead}
+                            className="text-sm text-cricket-primary hover:text-cricket-secondary"
+                          >
+                            Mark all read
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setShowNotifications(false)}
+                          className="text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="max-h-96 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="p-4 text-center text-gray-500">
+                        <Bell className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                        <p>No notifications yet</p>
+                      </div>
+                    ) : (
+                      notifications.map((notification) => (
+                        <div
+                          key={notification.id}
+                          onClick={() => markAsRead(notification.id)}
+                          className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${
+                            !notification.read ? 'bg-blue-50 border-l-4 border-l-cricket-primary' : ''
+                          }`}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-gray-800">{notification.title}</h4>
+                              <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
+                              <p className="text-xs text-gray-400 mt-2">
+                                {new Date(notification.createdAt).toLocaleString()}
+                              </p>
+                            </div>
+                            {!notification.read && (
+                              <div className="w-2 h-2 bg-cricket-primary rounded-full ml-2 mt-2"></div>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </div>
 
             {/* Profile Menu */}
             <div className="relative">

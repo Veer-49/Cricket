@@ -651,7 +651,7 @@ export default function TeamManagementFirebase({ user }: TeamManagementProps) {
                     value={joinTeamId}
                     onChange={(e) => setJoinTeamId(e.target.value.toUpperCase())}
                     placeholder="Enter 6-character code"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cricket-primary focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cricket-primary focus:border-transparent text-gray-900 bg-white"
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Enter either the 6-character team code

@@ -31,6 +31,7 @@ import {
   Download
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { NotificationService } from '@/services/notificationService'
 
 interface CricketScoringProps {
   teams: Team[]
@@ -38,6 +39,12 @@ interface CricketScoringProps {
 }
 
 export default function CricketScoring({ teams, user }: CricketScoringProps) {
+  // Filter teams to show only ones the user is part of
+  const userTeams = teams.filter(team => 
+    team.captainId === user?.id || 
+    team.players.some(player => player.userId === user?.id)
+  )
+
   // Match Setup State
   const [matchSetupComplete, setMatchSetupComplete] = useState(false)
   const [selectedTeam1, setSelectedTeam1] = useState<Team | null>(null)
@@ -45,8 +52,15 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
   const [matchFormat, setMatchFormat] = useState<MatchFormat>('T20')
   const [customOvers, setCustomOvers] = useState(20)
   const [venue, setVenue] = useState('')
+  
+  // Toss State
+  const [tossCompleted, setTossCompleted] = useState(false)
   const [tossWinner, setTossWinner] = useState<string>('')
   const [tossDecision, setTossDecision] = useState<'bat' | 'bowl'>('bat')
+  const [isFlipping, setIsFlipping] = useState(false)
+  const [coinResult, setCoinResult] = useState<'heads' | 'tails' | null>(null)
+  const [selectedCall, setSelectedCall] = useState<'heads' | 'tails' | null>(null)
+  const [callingTeam, setCallingTeam] = useState<string>('')
 
   // Match State
   const [currentMatch, setCurrentMatch] = useState<Match | null>(null)
@@ -72,9 +86,40 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
     }
   }
 
-  const initializeMatch = () => {
-    if (!selectedTeam1 || !selectedTeam2 || !venue || !tossWinner) {
-      toast.error('Please complete all match setup fields')
+  const flipCoin = () => {
+    if (!selectedTeam1 || !selectedTeam2) {
+      toast.error('Please select both teams first')
+      return
+    }
+
+    setIsFlipping(true)
+    
+    // Reset toss state
+    setTossWinner('')
+    setTossCompleted(false)
+    
+    // Simulate coin flip with delay
+    setTimeout(() => {
+      const result: 'heads' | 'tails' = Math.random() < 0.5 ? 'heads' : 'tails'
+      setCoinResult(result)
+      setIsFlipping(false)
+      
+      toast.success(`Coin shows: ${result.toUpperCase()}!`)
+    }, 2000) // 2 second flip animation
+  }
+
+  const completeToss = () => {
+    if (!tossWinner || !tossDecision) {
+      toast.error('Please select batting or bowling')
+      return
+    }
+    setTossCompleted(true)
+    toast.success('Toss completed! Ready to start match.')
+  }
+
+  const initializeMatch = async () => {
+    if (!selectedTeam1 || !selectedTeam2 || !venue || !tossCompleted) {
+      toast.error('Please complete team selection, venue, and toss before starting match')
       return
     }
 
@@ -114,7 +159,41 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
 
     setCurrentMatch(newMatch)
     setMatchSetupComplete(true)
+    
+    // Send notifications to all team members
+    const allTeamMembers: Array<{ userId: string; teamId: string }> = []
+    
+    // Add Team 1 members
+    if (selectedTeam1) {
+      allTeamMembers.push({ userId: selectedTeam1.captainId, teamId: selectedTeam1.id })
+      selectedTeam1.players.forEach(player => {
+        if (player.userId && player.userId !== selectedTeam1.captainId) {
+          allTeamMembers.push({ userId: player.userId, teamId: selectedTeam1.id })
+        }
+      })
+    }
+    
+    // Add Team 2 members
+    if (selectedTeam2) {
+      allTeamMembers.push({ userId: selectedTeam2.captainId, teamId: selectedTeam2.id })
+      selectedTeam2.players.forEach(player => {
+        if (player.userId && player.userId !== selectedTeam2.captainId) {
+          allTeamMembers.push({ userId: player.userId, teamId: selectedTeam2.id })
+        }
+      })
+    }
+    
+    // Send match start notification
+    await NotificationService.createMatchStartNotification(
+      newMatch.id,
+      selectedTeam1.name,
+      selectedTeam2.name,
+      venue,
+      allTeamMembers
+    )
+    
     toast.success('Match initialized successfully!')
+    toast.success('🔔 Notifications sent to all team members!')
   }
 
   const addBall = () => {
@@ -326,6 +405,32 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
   }
 
   if (!matchSetupComplete) {
+    // Show message if user has no teams
+    if (userTeams.length === 0) {
+      return (
+        <div className="space-y-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="card p-8 text-center"
+          >
+            <Trophy className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">No Teams Available</h2>
+            <p className="text-gray-600 mb-6">
+              You need to be part of at least one team to start scoring. 
+              Create or join teams in the Team Management section.
+            </p>
+            <button
+              onClick={() => window.location.hash = '#teams'}
+              className="bg-cricket-primary hover:bg-cricket-secondary text-white px-6 py-3 rounded-lg font-medium transition-colors"
+            >
+              Go to Team Management
+            </button>
+          </motion.div>
+        </div>
+      )
+    }
+
     return (
       <div className="space-y-6">
         <motion.div
@@ -335,109 +440,241 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
         >
           <h2 className="text-2xl font-bold text-gray-800 mb-6">Cricket Match Setup</h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Team A</label>
-              <select
-                value={selectedTeam1?.id || ''}
-                onChange={(e) => setSelectedTeam1(teams.find(t => t.id === e.target.value) || null)}
-                className="input-field"
-              >
-                <option value="">Select Team A</option>
-                {teams.map(team => (
-                  <option key={team.id} value={team.id}>{team.name}</option>
-                ))}
-              </select>
+          {userTeams.length < 2 && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+              <p className="text-yellow-800 text-sm">
+                <strong>Note:</strong> You need at least 2 teams to start a match. 
+                You currently have {userTeams.length} team{userTeams.length !== 1 ? 's' : ''}.
+              </p>
             </div>
+          )}
+          
+          {/* Step 1: Team Selection */}
+          <div className="space-y-6">
+            <div className="border-b pb-4">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Step 1: Select Teams</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Team A</label>
+                  <select
+                    value={selectedTeam1?.id || ''}
+                    onChange={(e) => setSelectedTeam1(userTeams.find(t => t.id === e.target.value) || null)}
+                    className="input-field text-gray-900"
+                  >
+                    <option value="">Select Team A</option>
+                    {userTeams.map(team => (
+                      <option key={team.id} value={team.id}>{team.name}</option>
+                    ))}
+                  </select>
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Team B</label>
-              <select
-                value={selectedTeam2?.id || ''}
-                onChange={(e) => setSelectedTeam2(teams.find(t => t.id === e.target.value) || null)}
-                className="input-field"
-              >
-                <option value="">Select Team B</option>
-                {teams.filter(t => t.id !== selectedTeam1?.id).map(team => (
-                  <option key={team.id} value={team.id}>{team.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Match Format</label>
-              <select
-                value={matchFormat}
-                onChange={(e) => setMatchFormat(e.target.value as MatchFormat)}
-                className="input-field"
-              >
-                <option value="T20">T20 (20 overs)</option>
-                <option value="ODI">ODI (50 overs)</option>
-                <option value="Test">Test (Unlimited)</option>
-                <option value="Custom">Custom</option>
-              </select>
-            </div>
-
-            {matchFormat === 'Custom' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Custom Overs</label>
-                <input
-                  type="number"
-                  value={customOvers}
-                  onChange={(e) => setCustomOvers(Number(e.target.value))}
-                  min="1"
-                  max="100"
-                  className="input-field"
-                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Team B</label>
+                  <select
+                    value={selectedTeam2?.id || ''}
+                    onChange={(e) => setSelectedTeam2(userTeams.find(t => t.id === e.target.value) || null)}
+                    className="input-field text-gray-900"
+                  >
+                    <option value="">Select Team B</option>
+                    {userTeams.filter(t => t.id !== selectedTeam1?.id).map(team => (
+                      <option key={team.id} value={team.id}>{team.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Venue</label>
-              <input
-                type="text"
-                value={venue}
-                onChange={(e) => setVenue(e.target.value)}
-                placeholder="Enter venue name"
-                className="input-field"
-              />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Toss Winner</label>
-              <select
-                value={tossWinner}
-                onChange={(e) => setTossWinner(e.target.value)}
-                className="input-field"
-              >
-                <option value="">Select toss winner</option>
-                {selectedTeam1 && <option value={selectedTeam1.id}>{selectedTeam1.name}</option>}
-                {selectedTeam2 && <option value={selectedTeam2.id}>{selectedTeam2.name}</option>}
-              </select>
+            {/* Step 2: Match Format & Venue */}
+            <div className="border-b pb-4">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Step 2: Match Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Match Format</label>
+                  <select
+                    value={matchFormat}
+                    onChange={(e) => setMatchFormat(e.target.value as MatchFormat)}
+                    className="input-field text-gray-900"
+                  >
+                    <option value="T20">T20 (20 overs)</option>
+                    <option value="ODI">ODI (50 overs)</option>
+                    <option value="Test">Test Match</option>
+                    <option value="Custom">Custom</option>
+                  </select>
+                </div>
+
+                {(matchFormat === 'Custom' || matchFormat === 'Test') && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {matchFormat === 'Test' ? 'Overs per Innings' : 'Custom Overs'}
+                    </label>
+                    <input
+                      type="number"
+                      value={customOvers}
+                      onChange={(e) => setCustomOvers(Number(e.target.value))}
+                      min="1"
+                      max={matchFormat === 'Test' ? "200" : "100"}
+                      className="input-field text-gray-900"
+                      placeholder={matchFormat === 'Test' ? "e.g., 90" : "Enter overs"}
+                    />
+                  </div>
+                )}
+
+                <div className={matchFormat === 'Custom' || matchFormat === 'Test' ? 'md:col-span-2' : ''}>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Venue</label>
+                  <input
+                    type="text"
+                    value={venue}
+                    onChange={(e) => setVenue(e.target.value)}
+                    placeholder="Enter venue name (e.g., Lord's Cricket Ground)"
+                    className="input-field text-gray-900"
+                  />
+                </div>
+              </div>
             </div>
 
+            {/* Step 3: Toss */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Toss Decision</label>
-              <select
-                value={tossDecision}
-                onChange={(e) => setTossDecision(e.target.value as 'bat' | 'bowl')}
-                className="input-field"
-              >
-                <option value="bat">Bat First</option>
-                <option value="bowl">Bowl First</option>
-              </select>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Step 3: Toss</h3>
+              
+              {!coinResult ? (
+                <div className="text-center space-y-6">
+                  <div className="flex flex-col items-center space-y-6">
+                    <motion.div
+                      animate={isFlipping ? { rotateY: 1800 } : { rotateY: 0 }}
+                      transition={{ duration: 2, ease: "easeInOut" }}
+                      className="w-40 h-40 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center text-4xl font-bold text-white shadow-2xl border-4 border-yellow-300"
+                    >
+                      🪙
+                    </motion.div>
+                    
+                    <button
+                      onClick={flipCoin}
+                      disabled={!selectedTeam1 || !selectedTeam2 || isFlipping}
+                      className="bg-yellow-600 hover:bg-yellow-700 text-white py-4 px-10 rounded-lg font-bold text-xl shadow-lg border-2 border-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-500 disabled:text-gray-300"
+                      style={{ color: 'white' }}
+                    >
+                      <span className="text-black font-bold">
+                        {isFlipping ? '⏳ Flipping...' : '🪙 Flip Coin'}
+                      </span>
+                    </button>
+                    
+                    {(!selectedTeam1 || !selectedTeam2) && (
+                      <p className="text-sm text-red-600 font-medium">
+                        ⚠️ Please select both teams first to flip the coin
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : !tossCompleted ? (
+                <div className="text-center space-y-6">
+                  {/* Big Coin with Result */}
+                  <div className="flex flex-col items-center space-y-4">
+                    <motion.div
+                      initial={{ scale: 0.8 }}
+                      animate={{ scale: 1 }}
+                      className="w-40 h-40 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex flex-col items-center justify-center text-white shadow-2xl border-4 border-green-300"
+                    >
+                      <div className="text-xl font-bold mb-1">{coinResult.toUpperCase()}</div>
+                      {tossWinner && (
+                        <div className="text-center px-1">
+                          <div className="text-xs font-medium">WINNER</div>
+                          <div className="text-sm font-bold leading-tight">
+                            {userTeams.find(t => t.id === tossWinner)?.name}
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
+                  </div>
+
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <p className="text-lg font-semibold text-green-800">
+                      Coin shows: {coinResult.toUpperCase()}!
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-lg font-medium text-gray-700 mb-4">
+                      👆 Click the team that won the toss:
+                    </label>
+                    <div className="flex justify-center gap-6 mb-6">
+                      <button
+                        onClick={() => setTossWinner(selectedTeam1?.id || '')}
+                        className={`py-3 px-8 rounded-lg font-bold text-lg border-2 transition-all ${
+                          tossWinner === selectedTeam1?.id 
+                            ? 'bg-cricket-primary text-white border-cricket-primary shadow-lg' 
+                            : 'bg-gray-200 text-gray-700 border-gray-300'
+                        }`}
+                      >
+                        🏏 {selectedTeam1?.name}
+                      </button>
+                      <button
+                        onClick={() => setTossWinner(selectedTeam2?.id || '')}
+                        className={`py-3 px-8 rounded-lg font-bold text-lg border-2 transition-all ${
+                          tossWinner === selectedTeam2?.id 
+                            ? 'bg-cricket-primary text-white border-cricket-primary shadow-lg' 
+                            : 'bg-gray-200 text-gray-700 border-gray-300'
+                        }`}
+                      >
+                        🏏 {selectedTeam2?.name}
+                      </button>
+                    </div>
+                  </div>
+
+                  {tossWinner && (
+                    <div>
+                      <label className="block text-lg font-medium text-gray-700 mb-4">
+                        {userTeams.find(t => t.id === tossWinner)?.name} chooses to:
+                      </label>
+                      <div className="flex justify-center gap-6">
+                        <button
+                          onClick={() => setTossDecision('bat')}
+                          className={`py-3 px-8 rounded-lg font-bold text-lg ${
+                            tossDecision === 'bat' 
+                              ? 'bg-cricket-primary text-white' 
+                              : 'bg-gray-200 text-gray-700'
+                          }`}
+                        >
+                          🏏 Bat First
+                        </button>
+                        <button
+                          onClick={() => setTossDecision('bowl')}
+                          className={`py-3 px-8 rounded-lg font-bold text-lg ${
+                            tossDecision === 'bowl' 
+                              ? 'bg-cricket-primary text-white' 
+                              : 'bg-gray-200 text-gray-700'
+                          }`}
+                        >
+                          ⚾ Bowl First
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={completeToss}
+                    disabled={!tossWinner || !tossDecision}
+                    className="bg-green-600 text-black py-3 px-8 rounded-lg font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    ✅ Confirm Toss Decision
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                  <p className="text-blue-800 font-medium">
+                    ✅ Toss Complete! {userTeams.find(t => t.id === tossWinner)?.name} won and chose to {tossDecision === 'bat' ? 'bat' : 'bowl'} first.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+          <button
             onClick={initializeMatch}
-            className="btn-primary mt-6"
+            disabled={!selectedTeam1 || !selectedTeam2 || !venue || !tossCompleted}
+            className="w-full mt-8 bg-cricket-primary text-white py-4 px-6 rounded-lg font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Play className="inline w-4 h-4 mr-2" />
-            Start Match
-          </motion.button>
+            🏏 Start Match
+          </button>
         </motion.div>
       </div>
     )

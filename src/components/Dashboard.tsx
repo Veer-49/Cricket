@@ -26,12 +26,9 @@ export type ActiveSection = 'home' | 'grounds' | 'coaches' | 'umpires' | 'nets' 
 export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [activeSection, setActiveSection] = useState<ActiveSection>('home')
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { joinTeam } = useFirebaseTeams()
+  const { teams, joinTeam } = useFirebaseTeams()
 
   const renderActiveSection = () => {
-    // Get teams from localStorage for cricket scoring
-    const teams = JSON.parse(localStorage.getItem('cricketTeams') || '[]')
-    
     switch (activeSection) {
       case 'home':
         return <DashboardHome user={user} setActiveSection={setActiveSection} />
