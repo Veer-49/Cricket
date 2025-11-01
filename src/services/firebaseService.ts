@@ -211,12 +211,13 @@ export class FirebaseService {
   static async generateQRCode(text: string): Promise<string> {
     try {
       return await QRCode.toDataURL(text, {
-        width: 256,
-        margin: 2,
+        width: 200,
+        margin: 1,
         color: {
           dark: '#000000',
           light: '#FFFFFF'
-        }
+        },
+        errorCorrectionLevel: 'M'
       })
     } catch (error) {
       console.error('Error generating QR code:', error)

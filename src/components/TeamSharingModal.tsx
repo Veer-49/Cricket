@@ -95,7 +95,7 @@ export const TeamSharingModal: React.FC<TeamSharingModalProps> = ({
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+          className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
         >
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b">
@@ -159,19 +159,19 @@ export const TeamSharingModal: React.FC<TeamSharingModalProps> = ({
               <label className="text-sm font-medium text-gray-700 block mb-3">
                 QR Code
               </label>
-              <div className="bg-white border-2 border-gray-200 rounded-lg p-4 inline-block">
+              <div className="bg-white border-2 border-gray-200 rounded-lg p-6 inline-block">
                 {loading ? (
-                  <div className="w-48 h-48 flex items-center justify-center">
+                  <div className="w-52 h-52 flex items-center justify-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cricket-primary"></div>
                   </div>
                 ) : qrCode ? (
                   <img 
                     src={qrCode} 
                     alt="Team QR Code" 
-                    className="w-48 h-48"
+                    className="w-52 h-52 object-contain"
                   />
                 ) : (
-                  <div className="w-48 h-48 flex items-center justify-center text-gray-400">
+                  <div className="w-52 h-52 flex items-center justify-center text-gray-400">
                     <QrCode className="w-12 h-12" />
                   </div>
                 )}
@@ -179,7 +179,7 @@ export const TeamSharingModal: React.FC<TeamSharingModalProps> = ({
               {qrCode && (
                 <button
                   onClick={downloadQRCode}
-                  className="mt-2 text-sm text-cricket-primary hover:text-cricket-secondary flex items-center justify-center gap-1"
+                  className="mt-3 text-sm text-cricket-primary hover:text-cricket-secondary flex items-center justify-center gap-1 mx-auto"
                 >
                   <Download className="w-4 h-4" />
                   Download QR Code

@@ -2,8 +2,10 @@
 
 import { motion } from 'framer-motion'
 import { User } from '@/types'
-import { Menu, Bell, Search, LogOut, User as UserIcon } from 'lucide-react'
+import { Menu, Bell, Search, LogOut, User as UserIcon, QrCode } from 'lucide-react'
 import { useState } from 'react'
+import { QRScanner } from './QRScanner'
+import toast from 'react-hot-toast'
 
 interface NavbarProps {
   user: User | null
@@ -13,6 +15,49 @@ interface NavbarProps {
 
 export default function Navbar({ user, onLogout, onMenuClick }: NavbarProps) {
   const [showProfileMenu, setShowProfileMenu] = useState(false)
+  const [showQRScanner, setShowQRScanner] = useState(false)
+
+  const handleQRScanSuccess = (result: string) => {
+    try {
+      // Check if it's a join URL or team code
+      if (result.includes('/join/')) {
+        // Extract short code from URL
+        const shortCode = result.split('/join/')[1]?.split('?')[0] // Remove query params if any
+        if (shortCode) {
+          toast.success(`Team code found: ${shortCode}`)
+          // Since this is a SPA, we'll need to trigger navigation differently
+          // For now, we'll copy the team code and show instructions
+          navigator.clipboard.writeText(shortCode)
+          toast.success(`Team code "${shortCode}" copied! Go to Teams → Join Team to paste it.`)
+        }
+      } else if (/^[A-Z0-9]{6}$/i.test(result)) {
+        // Direct team code (6 characters)
+        navigator.clipboard.writeText(result.toUpperCase())
+        toast.success(`Team code "${result.toUpperCase()}" copied! Go to Teams → Join Team to paste it.`)
+      } else if (/^\d{10}$/.test(result)) {
+        // 10-digit team ID
+        navigator.clipboard.writeText(result)
+        toast.success(`Team ID "${result}" copied! Go to Teams → Join Team to paste it.`)
+      } else {
+        // Try to extract team ID or code from the text
+        const teamIdMatch = result.match(/\b\d{10}\b/)
+        const teamCodeMatch = result.match(/\b[A-Z0-9]{6}\b/i)
+        
+        if (teamIdMatch) {
+          navigator.clipboard.writeText(teamIdMatch[0])
+          toast.success(`Team ID "${teamIdMatch[0]}" copied! Go to Teams → Join Team to paste it.`)
+        } else if (teamCodeMatch) {
+          navigator.clipboard.writeText(teamCodeMatch[0].toUpperCase())
+          toast.success(`Team code "${teamCodeMatch[0].toUpperCase()}" copied! Go to Teams → Join Team to paste it.`)
+        } else {
+          toast.error('No valid team code or ID found in QR code')
+        }
+      }
+    } catch (error) {
+      console.error('Error processing QR scan result:', error)
+      toast.error('Failed to process QR code')
+    }
+  }
 
   return (
     <motion.nav
@@ -65,6 +110,17 @@ export default function Navbar({ user, onLogout, onMenuClick }: NavbarProps) {
             <button className="sm:hidden p-2 text-white hover:text-royal-gold hover:bg-white/20 rounded-full transition-colors">
               <Search className="w-5 h-5" />
             </button>
+            
+            {/* QR Scanner Button */}
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setShowQRScanner(true)}
+              className="p-2 text-white hover:text-royal-gold hover:bg-white/20 rounded-full transition-colors"
+              title="Scan QR Code to Join Team"
+            >
+              <QrCode className="w-5 h-5 sm:w-6 sm:h-6" />
+            </motion.button>
             
             {/* Notifications */}
             <motion.button
@@ -132,6 +188,13 @@ export default function Navbar({ user, onLogout, onMenuClick }: NavbarProps) {
           </div>
         </div>
       </div>
+      
+      {/* QR Scanner Modal */}
+      <QRScanner
+        isOpen={showQRScanner}
+        onClose={() => setShowQRScanner(false)}
+        onScanSuccess={handleQRScanSuccess}
+      />
     </motion.nav>
   )
 }
