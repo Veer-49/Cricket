@@ -738,8 +738,8 @@ export default function TeamManagementFirebase({ user }: TeamManagementProps) {
                 {showTeamDetails.shortCode && (
                   <div className="bg-cricket-primary bg-opacity-10 rounded-lg p-4">
                     <div className="text-center">
-                      <div className="text-sm text-cricket-primary font-medium mb-1">Team Code</div>
-                      <div className="text-3xl font-mono font-bold text-cricket-primary">
+                      <div className="text-sm text-black font-medium mb-1">Team Code</div>
+                      <div className="text-3xl font-mono font-bold text-black">
                         {showTeamDetails.shortCode}
                       </div>
                     </div>
