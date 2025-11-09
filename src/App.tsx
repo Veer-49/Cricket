@@ -4,7 +4,7 @@ import { Toaster } from 'react-hot-toast'
 import AuthModal from '@/components/AuthModal'
 import Dashboard from '@/components/Dashboard'
 import { User } from '@/types'
-import { FCMService } from '@/services/fcmService'
+import { NotificationService as FCMService } from '@/services/fcmService'
 
 function App() {
   const [user, setUser] = useState<User | null>(null)

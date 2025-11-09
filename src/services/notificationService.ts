@@ -1,4 +1,4 @@
-import { FCMService } from './fcmService'
+import { NotificationService as FCMService } from './fcmService'
 
 interface Notification {
   id: string
@@ -53,19 +53,21 @@ export class NotificationService {
     
     this.saveNotifications(notifications)
     
-    // Send FCM push notifications
-    try {
-      const userIds = teamMembers.map(member => member.userId)
-      await FCMService.sendMatchStartNotification(
-        userIds,
-        team1Name,
-        team2Name,
-        venue,
-        matchId
-      )
-    } catch (error) {
-      console.error('Error sending FCM notification:', error)
-    }
+    // Create and show web notifications for each team member
+    const matchNotification = FCMService.createMatchNotification(
+      matchId,
+      team1Name,
+      team2Name,
+      venue
+    )
+    
+    // Show notification for each team member
+    teamMembers.forEach(member => {
+      FCMService.showNotification(matchNotification)
+      
+      // Save token for the user if not already saved
+      FCMService.initializeForUser(member.userId).catch(console.error)
+    })
   }
 
   static async createTeamJoinNotification(
@@ -90,17 +92,17 @@ export class NotificationService {
     notifications.push(notification)
     this.saveNotifications(notifications)
     
-    // Send FCM push notification
-    try {
-      await FCMService.sendTeamJoinNotification(
-        captainId,
-        teamName,
-        newMemberName,
-        teamId
-      )
-    } catch (error) {
-      console.error('Error sending FCM notification:', error)
-    }
+    // Create and show web notification for team join
+    const teamJoinNotification = FCMService.createTeamJoinNotification(
+      teamName,
+      newMemberName
+    )
+    
+    // Show notification to the captain
+    FCMService.showNotification(teamJoinNotification)
+    
+    // Ensure push is initialized for the captain
+    FCMService.initializeForUser(captainId).catch(console.error)
   }
 
   static getUserNotifications(userId: string): Notification[] {

@@ -1,4 +1,4 @@
-import { FCMService } from './fcmService'
+import { NotificationService as FCMService } from './fcmService'
 import { NotificationService } from './notificationService'
 
 export class TestNotifications {
