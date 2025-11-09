@@ -12,6 +12,7 @@ import {
   BarChart3, 
   Trophy,
   User,
+  Bell,
   X
 } from 'lucide-react'
 
@@ -31,6 +32,7 @@ const menuItems = [
   { id: 'teams', label: 'Team Management', icon: Shield },
   { id: 'scoring', label: 'Live Scoring', icon: BarChart3 },
   { id: 'matches', label: 'Match History', icon: Trophy },
+  { id: 'notifications', label: 'Test Notifications', icon: Bell },
   { id: 'profile', label: 'Profile', icon: User },
 ]
 

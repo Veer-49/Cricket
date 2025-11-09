@@ -1,34 +1,25 @@
 import { messaging } from '@/config/firebase'
 import { getToken, onMessage } from 'firebase/messaging'
 import { database } from '@/config/firebase'
-import { ref, set, get, push } from 'firebase/database'
+import { ref, set } from 'firebase/database'
 
-interface FCMNotification {
+export interface WebNotification {
   title: string
   body: string
   icon?: string
-  badge?: string
   data?: Record<string, any>
 }
 
-interface DeviceToken {
-  userId: string
-  token: string
-  platform: 'web' | 'android' | 'ios'
-  deviceInfo: string
-  lastUpdated: Date
-}
-
-export class FCMService {
+export class NotificationService {
   private static readonly VAPID_KEY = 'BKqcBg4a7X_nIe1ymdanx0KtgKMLOFBEERSHdHSmcXjKyBcNMxD-9BWROYSvuN422A-wkhEG_pLq_7Q76JB1atI'
 
   /**
-   * Initialize FCM for web app
+   * Initialize web push notifications
    */
   static async initializeWebPush(): Promise<string | null> {
     try {
       if (!messaging) {
-        console.warn('Firebase Messaging not supported in this browser')
+        console.warn('Web push not supported in this browser')
         return null
       }
 
@@ -45,238 +36,148 @@ export class FCMService {
       })
 
       if (token) {
-        console.log('✅ FCM Registration token obtained:', token)
+        console.log('✅ Web push token obtained:', token)
         return token
       } else {
-        console.warn('❌ No registration token available')
+        console.warn('No web push token available')
         return null
       }
     } catch (error) {
-      console.error('Error getting FCM token:', error)
+      console.error('Error getting web push token:', error)
       return null
     }
   }
 
   /**
-   * Save device token to Firebase
+   * Save web push token to Firebase
    */
-  static async saveDeviceToken(
-    userId: string, 
-    token: string, 
-    platform: 'web' | 'android' | 'ios' = 'web'
-  ): Promise<void> {
+  static async saveToken(userId: string, token: string): Promise<void> {
+    if (!userId || !token) return
+
     try {
-      const deviceToken: DeviceToken = {
-        userId,
+      const tokensRef = ref(database, `webPushTokens/${userId}`)
+      await set(tokensRef, {
         token,
-        platform,
-        deviceInfo: navigator.userAgent || 'Unknown',
-        lastUpdated: new Date()
-      }
-
-      const tokenRef = ref(database, `deviceTokens/${userId}/${platform}`)
-      await set(tokenRef, deviceToken)
-      
-      console.log('Device token saved successfully')
-    } catch (error) {
-      console.error('Error saving device token:', error)
-    }
-  }
-
-  /**
-   * Get all device tokens for a user
-   */
-  static async getUserTokens(userId: string): Promise<DeviceToken[]> {
-    try {
-      const tokensRef = ref(database, `deviceTokens/${userId}`)
-      const snapshot = await get(tokensRef)
-      
-      if (snapshot.exists()) {
-        const tokens: DeviceToken[] = []
-        snapshot.forEach((childSnapshot) => {
-          tokens.push(childSnapshot.val())
-        })
-        return tokens
-      }
-      
-      return []
-    } catch (error) {
-      console.error('Error getting user tokens:', error)
-      return []
-    }
-  }
-
-  /**
-   * Send notification to specific users
-   */
-  static async sendNotificationToUsers(
-    userIds: string[],
-    notification: FCMNotification
-  ): Promise<void> {
-    try {
-      // Get all device tokens for the users
-      const allTokens: string[] = []
-      
-      for (const userId of userIds) {
-        const userTokens = await this.getUserTokens(userId)
-        allTokens.push(...userTokens.map(t => t.token))
-      }
-
-      if (allTokens.length === 0) {
-        console.warn('No device tokens found for users')
-        return
-      }
-
-      // Send to Firebase Functions endpoint for server-side sending
-      await this.sendToFirebaseFunction(allTokens, notification)
-      
-    } catch (error) {
-      console.error('Error sending notifications:', error)
-    }
-  }
-
-  /**
-   * Send notification via Firebase Functions (server-side)
-   */
-  private static async sendToFirebaseFunction(
-    tokens: string[],
-    notification: FCMNotification
-  ): Promise<void> {
-    try {
-      // Store notification request in Firebase for Cloud Function to process
-      const notificationRef = ref(database, 'notificationQueue')
-      const newNotificationRef = push(notificationRef)
-      
-      await set(newNotificationRef, {
-        tokens,
-        notification,
-        timestamp: Date.now(),
-        status: 'pending'
+        userAgent: navigator.userAgent,
+        lastUpdated: new Date().toISOString()
       })
-      
-      console.log('Notification queued for processing')
+      console.log('✅ Web push token saved')
     } catch (error) {
-      console.error('Error queuing notification:', error)
+      console.error('Error saving web push token:', error)
+      throw error
     }
   }
 
   /**
-   * Listen for foreground messages
+   * Setup foreground message handler
    */
-  static setupForegroundMessageListener(
-    onMessageReceived: (payload: any) => void
-  ): void {
+  static setupMessageHandler() {
     if (!messaging) return
 
     onMessage(messaging, (payload) => {
-      console.log('Foreground message received:', payload)
+      console.log('Message received:', payload)
       
-      // Show custom notification or update UI
-      if (payload.notification) {
-        this.showCustomNotification(payload.notification)
+      const { notification, data } = payload
+      if (notification) {
+        this.showNotification({
+          title: notification.title || 'New Notification',
+          body: notification.body || '',
+          icon: notification.icon,
+          data: data as Record<string, any>
+        })
       }
-      
-      onMessageReceived(payload)
     })
   }
 
   /**
-   * Show custom notification
+   * Show browser notification
    */
-  private static showCustomNotification(notification: any): void {
-    if ('serviceWorker' in navigator && 'Notification' in window) {
-      navigator.serviceWorker.ready.then((registration) => {
-        registration.showNotification(notification.title, {
-          body: notification.body,
-          icon: notification.icon || '/logo.png',
-          badge: notification.badge || '/logo.png',
-          tag: 'cricket-notification',
-          requireInteraction: true,
-          data: notification.data || {}
-        } as NotificationOptions)
-      })
+  static showNotification(notification: WebNotification) {
+    if (!('Notification' in window)) {
+      console.warn('This browser does not support notifications')
+      return
+    }
+
+    if (Notification.permission === 'granted') {
+      const { title, body, icon, data } = notification
+      const options: NotificationOptions = {
+        body,
+        icon: icon || '/logo192.png',
+        data
+      }
+      
+      const notificationInstance = new Notification(title, options)
+      
+      notificationInstance.onclick = (event) => {
+        console.log('Notification clicked', event)
+        if (data?.url) {
+          window.open(data.url, '_blank')
+        }
+        notificationInstance.close()
+      }
     }
   }
 
   /**
-   * Initialize FCM for the current user
+   * Initialize web push for the current user
    */
   static async initializeForUser(userId: string): Promise<void> {
     try {
-      // Initialize web push
       const token = await this.initializeWebPush()
-      
       if (token) {
-        // Save token to Firebase
-        await this.saveDeviceToken(userId, token, 'web')
-        
-        // Setup message listener
-        this.setupForegroundMessageListener((payload) => {
-          // Handle received message
-          console.log('Message received:', payload)
-          
-          // You can dispatch custom events or update global state here
-          window.dispatchEvent(new CustomEvent('fcm-message', { 
-            detail: payload 
-          }))
-        })
+        await this.saveToken(userId, token)
+        this.setupMessageHandler()
       }
     } catch (error) {
-      console.error('Error initializing FCM for user:', error)
+      console.error('Error initializing web push:', error)
     }
   }
 
+  // Notification types for the app
+  static readonly NOTIFICATION_TYPES = {
+    MATCH_START: 'match_start',
+    TEAM_JOIN: 'team_join'
+  } as const
+
   /**
-   * Send match start notification
+   * Create a match start notification
    */
-  static async sendMatchStartNotification(
-    userIds: string[],
+  static createMatchNotification(
+    matchId: string,
     team1Name: string,
     team2Name: string,
-    venue: string,
-    matchId: string
-  ): Promise<void> {
-    const notification: FCMNotification = {
+    venue: string
+  ): WebNotification {
+    return {
       title: '🏏 Match Started!',
       body: `${team1Name} vs ${team2Name} at ${venue}`,
-      icon: '/logo.png',
-      badge: '/logo.png',
       data: {
-        type: 'match_start',
+        type: this.NOTIFICATION_TYPES.MATCH_START,
         matchId,
         team1Name,
         team2Name,
         venue,
-        url: `/scoring?match=${matchId}`
+        timestamp: Date.now()
       }
     }
-
-    await this.sendNotificationToUsers(userIds, notification)
   }
 
   /**
-   * Send team join notification
+   * Create a team join notification
    */
-  static async sendTeamJoinNotification(
-    captainId: string,
+  static createTeamJoinNotification(
     teamName: string,
-    newMemberName: string,
-    teamId: string
-  ): Promise<void> {
-    const notification: FCMNotification = {
-      title: '👥 New Team Member',
-      body: `${newMemberName} joined ${teamName}`,
-      icon: '/logo.png',
-      badge: '/logo.png',
+    newMemberName: string
+  ): WebNotification {
+    return {
+      title: '👋 New Team Member',
+      body: `${newMemberName} has joined ${teamName}`,
       data: {
-        type: 'team_join',
-        teamId,
+        type: this.NOTIFICATION_TYPES.TEAM_JOIN,
         teamName,
         newMemberName,
-        url: `/teams?team=${teamId}`
+        timestamp: Date.now()
       }
     }
-
-    await this.sendNotificationToUsers([captainId], notification)
   }
 }

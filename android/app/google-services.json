@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "590004782129",
+    "firebase_url": "https://cricket-team-manager-5ef78-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "cricket-team-manager-5ef78",
+    "storage_bucket": "cricket-team-manager-5ef78.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:590004782129:android:1c5705b0c6256f252b4110",
+        "android_client_info": {
+          "package_name": "com.cricket.teammanager"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDPW5Pjm2UVe8yajoeNz8mjJtStCfbuaPA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

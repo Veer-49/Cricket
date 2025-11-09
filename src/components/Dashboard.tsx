@@ -15,6 +15,7 @@ import TeamManagementFirebase from './TeamManagementFirebase'
 import CricketScoring from './CricketScoring'
 import MatchHistory from './MatchHistory'
 import UserProfile from './UserProfile'
+import { NotificationTestPanel } from './NotificationTestPanel'
 import { TestNotifications } from '../services/testNotifications'
 
 interface DashboardProps {
@@ -22,7 +23,7 @@ interface DashboardProps {
   onLogout: () => void
 }
 
-export type ActiveSection = 'home' | 'grounds' | 'coaches' | 'umpires' | 'nets' | 'teams' | 'scoring' | 'matches' | 'profile'
+export type ActiveSection = 'home' | 'grounds' | 'coaches' | 'umpires' | 'nets' | 'teams' | 'scoring' | 'matches' | 'notifications' | 'profile'
 
 export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [activeSection, setActiveSection] = useState<ActiveSection>('home')
@@ -47,6 +48,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
         return <CricketScoring teams={teams} user={user} />
       case 'matches':
         return <MatchHistory user={user} />
+      case 'notifications':
+        return <NotificationTestPanel />
       case 'profile':
         return <UserProfile user={user} />
       default:
