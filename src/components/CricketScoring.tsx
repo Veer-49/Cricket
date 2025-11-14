@@ -369,10 +369,13 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
       ballNumber: currentMatch.currentBall + 1,
       over: currentOver,
       ball: ballInOver,
+      bowler: currentBowler,  // Required by Ball interface
+      batsman: striker,       // Required by Ball interface
+      isWicket: !!isWicket,   // Required by Ball interface
       striker_id: striker,
       non_striker_id: nonStriker,
       bowler_id: currentBowler,
-      dismissal_type: isWicket ? dismissalType : undefined,
+      dismissalType: isWicket ? dismissalType : undefined,
       dismissed_batsman_id: isWicket ? (dismissalType === 'run-out' ? dismissedBatsman : striker) : undefined,
       fielder_id: isWicket && fielder ? fielder : undefined,
       runs: runsScored,
