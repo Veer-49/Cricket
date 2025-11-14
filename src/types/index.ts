@@ -170,12 +170,16 @@ export interface BatsmanStats {
   name: string
   runs: number
   balls: number
+  ballsFaced: number
   fours: number
   sixes: number
   strikeRate: number
   isOut: boolean
   dismissalType?: DismissalType
   dismissedBy?: string
+  howOut?: DismissalType
+  bowlerOut?: string
+  fielderOut?: string
 }
 
 export interface BowlerStats {
@@ -186,6 +190,7 @@ export interface BowlerStats {
   wickets: number
   maidens: number
   economyRate: number
+  legalBalls: number
 }
 
 export interface Extras {
@@ -216,6 +221,7 @@ export interface Commentary {
 
 export interface Ball {
   ballNumber: number
+  ball?: number // Alternative to ballNumber for compatibility
   over: number
   bowler: string
   batsman: string
@@ -223,9 +229,16 @@ export interface Ball {
   isWicket: boolean
   dismissalType?: DismissalType
   dismissedPlayer?: string
+  dismissed_batsman_id?: string // Alternative to dismissedPlayer
   extraType?: ExtraType
+  extras?: ExtraType // Alternative to extraType
   extraRuns: number
   isLegal: boolean
+  striker_id?: string
+  non_striker_id?: string
+  bowler_id?: string
+  fielder_id?: string
+  timestamp?: Date
 }
 
 export interface OverSummary {
