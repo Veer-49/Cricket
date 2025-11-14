@@ -467,8 +467,8 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
   }
 
   if (!matchSetupComplete) {
-    // Show message if user has no teams
-    if (userTeams.length === 0) {
+    // Show message if user has no teams and not using team codes
+    if (userTeams.length === 0 && !useTeamCodes) {
       return (
         <div className="space-y-6">
           <motion.div
@@ -479,15 +479,22 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
             <Trophy className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-gray-800 mb-4">No Teams Available</h2>
             <p className="text-gray-600 mb-6">
-              You need to be part of at least one team to start scoring. 
-              Create or join teams in the Team Management section.
+              You're not part of any teams yet. You can either create/join teams or use team codes to start scoring for any teams.
             </p>
-            <button
-              onClick={() => window.location.hash = '#teams'}
-              className="bg-cricket-primary hover:bg-cricket-secondary text-white px-6 py-3 rounded-lg font-medium transition-colors"
-            >
-              Go to Team Management
-            </button>
+            <div className="space-y-3">
+              <button
+                onClick={() => setUseTeamCodes(true)}
+                className="bg-cricket-primary hover:bg-cricket-secondary text-white px-6 py-3 rounded-lg font-medium transition-colors mr-4"
+              >
+                Use Team Codes
+              </button>
+              <button
+                onClick={() => window.location.hash = '#teams'}
+                className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+              >
+                Go to Team Management
+              </button>
+            </div>
           </motion.div>
         </div>
       )
