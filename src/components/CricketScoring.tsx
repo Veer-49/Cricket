@@ -32,7 +32,6 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { NotificationService } from '@/services/notificationService'
-import { FirebaseService } from '@/services/firebaseService'
 
 interface CricketScoringProps {
   teams: Team[]
@@ -53,12 +52,6 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
   const [matchFormat, setMatchFormat] = useState<MatchFormat>('T20')
   const [customOvers, setCustomOvers] = useState(20)
   const [venue, setVenue] = useState('')
-  
-  // Team Code Setup State
-  const [useTeamCodes, setUseTeamCodes] = useState(false)
-  const [team1Code, setTeam1Code] = useState('')
-  const [team2Code, setTeam2Code] = useState('')
-  const [loadingTeamCodes, setLoadingTeamCodes] = useState(false)
   
   // Toss State
   const [tossCompleted, setTossCompleted] = useState(false)
@@ -90,59 +83,6 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
       case 'Test': return 999 // Unlimited
       case 'Custom': return customOvers
       default: return 20
-    }
-  }
-
-  const loadTeamFromCode = async (code: string): Promise<Team | null> => {
-    if (!code || code.length !== 6) return null
-    
-    try {
-      const team = await FirebaseService.getTeamByShortCode(code)
-      return team
-    } catch (error) {
-      console.error('Error loading team:', error)
-      return null
-    }
-  }
-
-  const handleLoadTeamsFromCodes = async () => {
-    if (!team1Code || !team2Code) {
-      toast.error('Please enter both team codes')
-      return
-    }
-
-    if (team1Code === team2Code) {
-      toast.error('Team codes must be different')
-      return
-    }
-
-    setLoadingTeamCodes(true)
-    
-    try {
-      const [team1, team2] = await Promise.all([
-        loadTeamFromCode(team1Code),
-        loadTeamFromCode(team2Code)
-      ])
-
-      if (!team1) {
-        toast.error(`Team with code "${team1Code}" not found`)
-        setLoadingTeamCodes(false)
-        return
-      }
-
-      if (!team2) {
-        toast.error(`Team with code "${team2Code}" not found`)
-        setLoadingTeamCodes(false)
-        return
-      }
-
-      setSelectedTeam1(team1)
-      setSelectedTeam2(team2)
-      toast.success('Teams loaded successfully!')
-    } catch (error) {
-      toast.error('Failed to load teams')
-    } finally {
-      setLoadingTeamCodes(false)
     }
   }
 
@@ -183,12 +123,10 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
       return
     }
 
-    // Determine which team bats first based on toss decision
-    const tossWinnerTeam = tossWinner === selectedTeam1.name ? selectedTeam1 : selectedTeam2
-    const tossLoserTeam = tossWinner === selectedTeam1.name ? selectedTeam2 : selectedTeam1
+    const battingFirst = tossDecision === 'bat' ? tossWinner : 
+      (tossWinner === selectedTeam1.id ? selectedTeam2.id : selectedTeam1.id)
     
-    const battingFirst = tossDecision === 'bat' ? tossWinnerTeam.id : tossLoserTeam.id
-    const bowlingFirst = tossDecision === 'bat' ? tossLoserTeam.id : tossWinnerTeam.id
+    const bowlingFirst = battingFirst === selectedTeam1.id ? selectedTeam2.id : selectedTeam1.id
 
     const newMatch: Match = {
       id: Date.now().toString(),
@@ -502,13 +440,11 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
         >
           <h2 className="text-2xl font-bold text-gray-800 mb-6">Cricket Match Setup</h2>
           
-          {userTeams.length < 2 && !useTeamCodes && (
+          {userTeams.length < 2 && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
               <p className="text-yellow-800 text-sm">
                 <strong>Note:</strong> You need at least 2 teams to start a match. 
                 You currently have {userTeams.length} team{userTeams.length !== 1 ? 's' : ''}.
-                <br />
-                <strong>Tip:</strong> You can also use team codes to start scoring for any teams!
               </p>
             </div>
           )}
@@ -517,137 +453,35 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
           <div className="space-y-6">
             <div className="border-b pb-4">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">Step 1: Select Teams</h3>
-              
-              {/* Team Selection Mode Toggle */}
-              <div className="mb-6">
-                <div className="flex items-center space-x-4 mb-4">
-                  <button
-                    onClick={() => {
-                      setUseTeamCodes(false)
-                      setSelectedTeam1(null)
-                      setSelectedTeam2(null)
-                      setTeam1Code('')
-                      setTeam2Code('')
-                    }}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                      !useTeamCodes 
-                        ? 'bg-cricket-primary text-white' 
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Team A</label>
+                  <select
+                    value={selectedTeam1?.id || ''}
+                    onChange={(e) => setSelectedTeam1(userTeams.find(t => t.id === e.target.value) || null)}
+                    className="input-field text-gray-900"
                   >
-                    My Teams
-                  </button>
-                  <button
-                    onClick={() => {
-                      setUseTeamCodes(true)
-                      setSelectedTeam1(null)
-                      setSelectedTeam2(null)
-                    }}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                      useTeamCodes 
-                        ? 'bg-cricket-primary text-white' 
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    Team Codes
-                  </button>
+                    <option value="">Select Team A</option>
+                    {userTeams.map(team => (
+                      <option key={team.id} value={team.id}>{team.name}</option>
+                    ))}
+                  </select>
                 </div>
-                <p className="text-sm text-gray-600">
-                  {useTeamCodes 
-                    ? 'Enter 6-character team codes to start scoring for any teams'
-                    : 'Select from teams you are a member of'
-                  }
-                </p>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Team B</label>
+                  <select
+                    value={selectedTeam2?.id || ''}
+                    onChange={(e) => setSelectedTeam2(userTeams.find(t => t.id === e.target.value) || null)}
+                    className="input-field text-gray-900"
+                  >
+                    <option value="">Select Team B</option>
+                    {userTeams.filter(t => t.id !== selectedTeam1?.id).map(team => (
+                      <option key={team.id} value={team.id}>{team.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-
-              {!useTeamCodes ? (
-                /* My Teams Selection */
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Team A</label>
-                    <select
-                      value={selectedTeam1?.id || ''}
-                      onChange={(e) => setSelectedTeam1(userTeams.find(t => t.id === e.target.value) || null)}
-                      className="input-field text-gray-900"
-                    >
-                      <option value="">Select Team A</option>
-                      {userTeams.map(team => (
-                        <option key={team.id} value={team.id}>{team.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Team B</label>
-                    <select
-                      value={selectedTeam2?.id || ''}
-                      onChange={(e) => setSelectedTeam2(userTeams.find(t => t.id === e.target.value) || null)}
-                      className="input-field text-gray-900"
-                    >
-                      <option value="">Select Team B</option>
-                      {userTeams.filter(t => t.id !== selectedTeam1?.id).map(team => (
-                        <option key={team.id} value={team.id}>{team.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              ) : (
-                /* Team Codes Input */
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Team A Code</label>
-                      <input
-                        type="text"
-                        value={team1Code}
-                        onChange={(e) => setTeam1Code(e.target.value.toUpperCase().slice(0, 6))}
-                        placeholder="Enter 6-character code"
-                        className="input-field text-gray-900"
-                        maxLength={6}
-                      />
-                      {selectedTeam1 && (
-                        <p className="text-sm text-green-600 mt-1">✓ {selectedTeam1.name}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Team B Code</label>
-                      <input
-                        type="text"
-                        value={team2Code}
-                        onChange={(e) => setTeam2Code(e.target.value.toUpperCase().slice(0, 6))}
-                        placeholder="Enter 6-character code"
-                        className="input-field text-gray-900"
-                        maxLength={6}
-                      />
-                      {selectedTeam2 && (
-                        <p className="text-sm text-green-600 mt-1">✓ {selectedTeam2.name}</p>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-center">
-                    <button
-                      onClick={handleLoadTeamsFromCodes}
-                      disabled={!team1Code || !team2Code || team1Code.length !== 6 || team2Code.length !== 6 || loadingTeamCodes}
-                      className="bg-cricket-primary hover:bg-cricket-secondary text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {loadingTeamCodes ? 'Loading Teams...' : 'Load Teams'}
-                    </button>
-                  </div>
-                  
-                  {useTeamCodes && (!selectedTeam1 || !selectedTeam2) && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <p className="text-blue-800 text-sm">
-                        <strong>How to find team codes:</strong>
-                        <br />• Ask team captains for their 6-character team codes
-                        <br />• Team codes are displayed in the Team Management section
-                        <br />• Each team has a unique code like "ABC123"
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
 
             {/* Step 2: Match Format & Venue */}
@@ -741,14 +575,14 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
                       className="w-40 h-40 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex flex-col items-center justify-center text-white shadow-2xl border-4 border-green-300"
                     >
                       <div className="text-xl font-bold mb-1">{coinResult.toUpperCase()}</div>
-                        {tossWinner && (
-                          <div className="text-center px-1">
-                            <div className="text-xs font-medium">WINNER</div>
-                            <div className="text-sm font-bold leading-tight">
-                              {useTeamCodes ? tossWinner : userTeams.find(t => t.id === tossWinner)?.name}
-                            </div>
+                      {tossWinner && (
+                        <div className="text-center px-1">
+                          <div className="text-xs font-medium">WINNER</div>
+                          <div className="text-sm font-bold leading-tight">
+                            {userTeams.find(t => t.id === tossWinner)?.name}
                           </div>
-                        )}
+                        </div>
+                      )}
                     </motion.div>
                   </div>
 
@@ -764,9 +598,9 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
                     </label>
                     <div className="flex justify-center gap-6 mb-6">
                       <button
-                        onClick={() => setTossWinner(selectedTeam1?.name || '')}
+                        onClick={() => setTossWinner(selectedTeam1?.id || '')}
                         className={`py-3 px-8 rounded-lg font-bold text-lg border-2 transition-all ${
-                          tossWinner === selectedTeam1?.name 
+                          tossWinner === selectedTeam1?.id 
                             ? 'bg-cricket-primary text-white border-cricket-primary shadow-lg' 
                             : 'bg-gray-200 text-gray-700 border-gray-300'
                         }`}
@@ -774,9 +608,9 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
                         🏏 {selectedTeam1?.name}
                       </button>
                       <button
-                        onClick={() => setTossWinner(selectedTeam2?.name || '')}
+                        onClick={() => setTossWinner(selectedTeam2?.id || '')}
                         className={`py-3 px-8 rounded-lg font-bold text-lg border-2 transition-all ${
-                          tossWinner === selectedTeam2?.name 
+                          tossWinner === selectedTeam2?.id 
                             ? 'bg-cricket-primary text-white border-cricket-primary shadow-lg' 
                             : 'bg-gray-200 text-gray-700 border-gray-300'
                         }`}
@@ -789,7 +623,7 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
                   {tossWinner && (
                     <div>
                       <label className="block text-lg font-medium text-gray-700 mb-4">
-                        {tossWinner} chooses to:
+                        {userTeams.find(t => t.id === tossWinner)?.name} chooses to:
                       </label>
                       <div className="flex justify-center gap-6">
                         <button
@@ -827,7 +661,7 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
               ) : (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
                   <p className="text-blue-800 font-medium">
-                    ✅ Toss Complete! {tossWinner} won and chose to {tossDecision === 'bat' ? 'bat' : 'bowl'} first.
+                    ✅ Toss Complete! {userTeams.find(t => t.id === tossWinner)?.name} won and chose to {tossDecision === 'bat' ? 'bat' : 'bowl'} first.
                   </p>
                 </div>
               )}
