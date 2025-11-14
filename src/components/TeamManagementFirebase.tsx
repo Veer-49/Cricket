@@ -527,19 +527,19 @@ export default function TeamManagementFirebase({ user }: TeamManagementProps) {
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4 text-cricket-primary" />
-                  <span className="text-sm font-medium text-black">{team.players.length} players</span>
+                  <span className="text-sm font-medium">{team.players.length} players</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Target className="w-4 h-4 text-cricket-secondary" />
-                  <span className="text-sm font-medium text-black">{team.matchFormat}</span>
+                  <span className="text-sm font-medium">{team.matchFormat}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Trophy className="w-4 h-4 text-yellow-500" />
-                  <span className="text-sm font-medium text-black">{team.wins}W</span>
+                  <span className="text-sm font-medium">{team.wins}W</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-gray-500" />
-                  <span className="text-sm font-medium text-black">
+                  <span className="text-sm font-medium">
                     {new Date(team.createdAt).toLocaleDateString()}
                   </span>
                 </div>
@@ -611,7 +611,7 @@ export default function TeamManagementFirebase({ user }: TeamManagementProps) {
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
             {viewMode === 'my-teams' ? 'No teams found' : 'No public teams available'}
           </h3>
-          <p className="text-white mb-6">
+          <p className="text-gray-600 mb-6">
             {viewMode === 'my-teams' 
               ? 'Create your first team or join an existing one'
               : 'Be the first to create a public team!'
@@ -643,7 +643,7 @@ export default function TeamManagementFirebase({ user }: TeamManagementProps) {
               <h3 className="text-xl font-bold text-gray-900 mb-4">Join Team</h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-black mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Team ID or Code
                   </label>
                   <input
@@ -827,7 +827,7 @@ export default function TeamManagementFirebase({ user }: TeamManagementProps) {
               <div className="p-6 space-y-6">
                 {/* Team Name */}
                 <div>
-                  <label className="block text-sm font-medium text-black mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Team Name *
                   </label>
                   <input
@@ -841,7 +841,7 @@ export default function TeamManagementFirebase({ user }: TeamManagementProps) {
 
                 {/* Match Format */}
                 <div>
-                  <label className="block text-sm font-medium text-black mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Match Format
                   </label>
                   <select
@@ -865,7 +865,7 @@ export default function TeamManagementFirebase({ user }: TeamManagementProps) {
                       onChange={(e) => setEditIsPublic(e.target.checked)}
                       className="w-4 h-4 text-cricket-primary border-gray-300 rounded focus:ring-cricket-primary"
                     />
-                    <span className="text-sm font-medium text-black">
+                    <span className="text-sm font-medium text-gray-700">
                       Make team public (visible to all users)
                     </span>
                   </label>
@@ -1021,7 +1021,7 @@ export default function TeamManagementFirebase({ user }: TeamManagementProps) {
               <div className="p-6 space-y-6">
                 {/* Team Name */}
                 <div>
-                  <label className="block text-sm font-medium text-black mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Team Name *
                   </label>
                   <input
@@ -1035,7 +1035,7 @@ export default function TeamManagementFirebase({ user }: TeamManagementProps) {
 
                 {/* Match Format */}
                 <div>
-                  <label className="block text-sm font-medium text-black mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Match Format
                   </label>
                   <select
@@ -1059,7 +1059,7 @@ export default function TeamManagementFirebase({ user }: TeamManagementProps) {
                       onChange={(e) => setIsPublic(e.target.checked)}
                       className="w-4 h-4 text-cricket-primary border-gray-300 rounded focus:ring-cricket-primary"
                     />
-                    <span className="text-sm font-medium text-black">
+                    <span className="text-sm font-medium text-gray-700">
                       Make team public (visible to all users)
                     </span>
                   </label>
