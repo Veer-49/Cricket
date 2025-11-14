@@ -1011,18 +1011,131 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
         animate={{ opacity: 1, y: 0 }}
         className="card p-6"
       >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center">
-            <p className="text-4xl font-bold text-cricket-primary">
-              {currentInningsData?.runs}/{currentInningsData?.wickets}
-            </p>
-            <p className="text-gray-600">
-              {Math.floor((currentInningsData?.balls || 0) / 6)}.{(currentInningsData?.balls || 0) % 6} overs
-            </p>
+        <div className="space-y-6">
+          {/* Current Score */}
+          <div className="grid grid-cols-3 gap-6 bg-white p-4 rounded-lg shadow-sm">
+            <div className="text-center">
+              <p className="text-sm font-medium text-gray-600">Score</p>
+              <p className="text-3xl font-bold text-cricket-primary">
+                {currentInningsData?.runs || 0}<span className="text-lg">/{currentInningsData?.wickets || 0}</span>
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-medium text-gray-600">Overs</p>
+              <p className="text-2xl font-bold text-gray-800">
+                {Math.floor((currentInningsData?.balls || 0) / 6)}.{(currentInningsData?.balls || 0) % 6}
+              </p>
+            </div>
+            {currentInnings === 2 && currentMatch?.innings[0] && (
+              <div className="text-center">
+                <p className="text-sm font-medium text-gray-600">Target</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {currentMatch.innings[0].runs + 1}
+                </p>
+              </div>
+            )}
+            
+            {/* Current Partnership - Full Width */}
+            {currentInningsData?.batsmen && striker && nonStriker && (
+              <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 p-4 rounded-lg shadow-md">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-lg font-bold text-blue-800">Partnership</h3>
+                  <div className="text-3xl font-extrabold text-blue-700">
+                    {currentInningsData.batsmen
+                      .filter(b => b.playerId === striker || b.playerId === nonStriker)
+                      .reduce((total, b) => total + (b.runs || 0), 0)}
+                    <span className="ml-2 text-base font-normal">runs</span>
+                  </div>
+                </div>
+                
+                {battingTeam && (
+                  <div className="grid grid-cols-2 gap-4">
+                    {[striker, nonStriker].filter(Boolean).map((playerId) => {
+                      const player = battingTeam?.players?.find(p => p.userId === playerId);
+                      const stats = currentInningsData?.batsmen?.find(b => b.playerId === playerId) || {} as BatsmanStats;
+                      const isStriker = playerId === striker;
+                      
+                      if (!player || !stats) return null;
+                      
+                      return (
+                        <div 
+                          key={playerId} 
+                          className={`p-3 rounded-lg ${isStriker ? 'bg-white shadow-sm' : 'bg-blue-50'}`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <p className="font-semibold text-gray-900">
+                                {player.name?.split(' ')[0]}
+                                {isStriker && <span className="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">STRIKER</span>}
+                              </p>
+                              <p className="text-2xl font-bold text-blue-700">
+                                {stats.runs || 0}
+                                <span className="text-sm font-normal text-gray-500 ml-1">
+                                  ({stats.ballsFaced || 0} balls)
+                                </span>
+                                {!stats.isOut && <span className="text-green-600 ml-1">*</span>}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <div className="flex gap-2 text-sm">
+                                <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded">
+                                  {stats.fours || 0}×4
+                                </span>
+                                <span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded">
+                                  {stats.sixes || 0}×6
+                                </span>
+                              </div>
+                              <div className="mt-1 text-xs text-gray-500">
+                                SR: {stats.ballsFaced ? Math.round(((stats.runs || 0) / stats.ballsFaced) * 100) : 0}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                
+                <div className="mt-3 pt-3 border-t border-blue-200 text-xs text-gray-500">
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div>
+                      <div className="font-medium">Partnership</div>
+                      <div className="text-sm font-semibold text-blue-700">
+                        {currentInningsData.batsmen
+                          ?.filter(b => b.playerId === striker || b.playerId === nonStriker)
+                          ?.reduce((total, b) => total + (b.runs || 0), 0) || 0}
+                        <span className="ml-1">runs</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium">Balls</div>
+                      <div className="text-sm font-semibold text-blue-700">
+                        {currentInningsData.batsmen
+                          ?.filter(b => b.playerId === striker || b.playerId === nonStriker)
+                          ?.reduce((total, b) => total + (b.ballsFaced || 0), 0) || 0}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium">Run Rate</div>
+                      <div className="text-sm font-semibold text-blue-700">
+                        {calculateRunRate(
+                          currentInningsData.batsmen
+                            .filter(b => b.playerId === striker || b.playerId === nonStriker)
+                            .reduce((total, b) => total + (b.runs || 0), 0),
+                          Math.floor((currentInningsData.balls || 0) / 6),
+                          (currentInningsData.balls || 0) % 6
+                        ).toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           
+          {/* Run Rate */}
           <div className="text-center">
-            <p className="text-lg font-semibold text-gray-800">Run Rate</p>
+            <p className="text-lg font-semibold text-black">Run Rate</p>
             <p className="text-2xl font-bold text-green-600">
               {calculateRunRate(
                 currentInningsData?.runs || 0, 
@@ -1030,18 +1143,43 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
                 (currentInningsData?.balls || 0) % 6
               ).toFixed(2)}
             </p>
+            
+            {/* Required Run Rate (2nd Innings) */}
+            {currentInnings === 2 && currentMatch?.innings[0] && (
+              <div className="mt-2">
+                <p className="text-sm font-semibold text-black">Required RR:</p>
+                <p className="text-lg font-bold text-red-600">
+                  {calculateRequiredRunRate(
+                    (currentMatch?.innings[0]?.runs || 0) + 1,
+                    currentInningsData?.runs || 0,
+                    Math.max(0, (currentMatch?.totalOvers || 20) * 6 - (currentInningsData?.balls || 0)) / 6
+                  ).toFixed(2)}
+                </p>
+              </div>
+            )}
           </div>
 
-          {currentInnings === 2 && (
+          {/* Runs Needed (2nd Innings) */}
+          {currentInnings === 2 && currentMatch?.innings?.[0] && currentInningsData && (
             <div className="text-center">
-              <p className="text-lg font-semibold text-gray-800">Required RR</p>
-              <p className="text-2xl font-bold text-red-600">
-                {calculateRequiredRunRate(
-                  (currentMatch?.innings[0]?.runs || 0) + 1,
-                  currentInningsData?.runs || 0,
-                  (currentMatch?.totalOvers || 20) - Math.floor((currentInningsData?.balls || 0) / 6)
-                ).toFixed(2)}
-              </p>
+              <div className="text-center">
+                {currentInningsData?.runs > currentMatch.innings[0]?.runs ? (
+                  <div className="text-3xl font-bold text-green-600">
+                    Winning by {10 - (currentInningsData?.wickets || 0)} wkts
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-4xl font-extrabold text-red-600">
+                      Need {(currentMatch.innings[0]?.runs || 0) - (currentInningsData?.runs || 0) + 1}
+                    </div>
+                    <div className="text-xl font-semibold text-gray-700 mt-1">
+                      in {Math.max(0, (currentMatch.totalOvers || 20) * 6 - (currentInningsData?.balls || 0))} balls
+                    </div>
+                  </>
+                )}
+              </div>
+              
+              {/* Runs needed section removed as per user request */}
             </div>
           )}
         </div>
