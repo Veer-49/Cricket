@@ -1,6 +1,8 @@
 import { NotificationService as FCMService } from './fcmService'
+import { functions } from '@/config/firebase'
+import { httpsCallable } from 'firebase/functions'
 
-interface Notification {
+interface LocalNotification {
   id: string
   type: 'match_start' | 'team_join' | 'match_invite'
   title: string
@@ -13,7 +15,7 @@ interface Notification {
 }
 
 export class NotificationService {
-  private static getStoredNotifications(): Notification[] {
+  private static getStoredNotifications(): LocalNotification[] {
     try {
       return JSON.parse(localStorage.getItem('userNotifications') || '[]')
     } catch {
@@ -21,7 +23,7 @@ export class NotificationService {
     }
   }
 
-  private static saveNotifications(notifications: Notification[]): void {
+  private static saveNotifications(notifications: LocalNotification[]): void {
     localStorage.setItem('userNotifications', JSON.stringify(notifications))
   }
 
@@ -36,7 +38,7 @@ export class NotificationService {
     
     // Create local notifications
     teamMembers.forEach(member => {
-      const notification: Notification = {
+      const notification: LocalNotification = {
         id: `match_${matchId}_${member.userId}_${Date.now()}`,
         type: 'match_start',
         title: '🏏 Match Started!',
@@ -53,21 +55,40 @@ export class NotificationService {
     
     this.saveNotifications(notifications)
     
-    // Create and show web notifications for each team member
-    const matchNotification = FCMService.createMatchNotification(
-      matchId,
-      team1Name,
-      team2Name,
-      venue
-    )
-    
-    // Show notification for each team member
-    teamMembers.forEach(member => {
-      FCMService.showNotification(matchNotification)
+    // Send notifications to all team members via Firebase function
+    try {
+      const sendNotification = httpsCallable(functions, 'sendNotification')
+      const userIds = teamMembers.map(member => member.userId)
       
-      // Save token for the user if not already saved
-      FCMService.initializeForUser(member.userId).catch(console.error)
-    })
+      await sendNotification({
+        userIds: userIds,
+        notification: {
+          title: '🏏 Match Started!',
+          body: `${team1Name} vs ${team2Name} at ${venue}`,
+          data: {
+            type: 'match_start',
+            matchId: matchId,
+            team1Name: team1Name,
+            team2Name: team2Name,
+            venue: venue,
+            timestamp: Date.now()
+          }
+        }
+      })
+      
+      console.log(`✅ Match start notifications sent to ${userIds.length} team members`)
+    } catch (error) {
+      console.error('❌ Failed to send Firebase notifications:', error)
+      
+      // Fallback: Show local notification to current user only
+      const matchNotification = FCMService.createMatchNotification(
+        matchId,
+        team1Name,
+        team2Name,
+        venue
+      )
+      FCMService.showNotification(matchNotification)
+    }
   }
 
   static async createTeamJoinNotification(
@@ -78,7 +99,7 @@ export class NotificationService {
   ): Promise<void> {
     const notifications = this.getStoredNotifications()
     
-    const notification: Notification = {
+    const notification: LocalNotification = {
       id: `team_join_${teamId}_${Date.now()}`,
       type: 'team_join',
       title: '👥 New Team Member',
@@ -92,20 +113,41 @@ export class NotificationService {
     notifications.push(notification)
     this.saveNotifications(notifications)
     
-    // Create and show web notification for team join
-    const teamJoinNotification = FCMService.createTeamJoinNotification(
-      teamName,
-      newMemberName
-    )
-    
-    // Show notification to the captain
-    FCMService.showNotification(teamJoinNotification)
+    // Send notification to the captain via Firebase function
+    try {
+      const sendNotification = httpsCallable(functions, 'sendNotification')
+      
+      await sendNotification({
+        userIds: [captainId],
+        notification: {
+          title: '👥 New Team Member',
+          body: `${newMemberName} joined ${teamName}`,
+          data: {
+            type: 'team_join',
+            teamName: teamName,
+            newMemberName: newMemberName,
+            timestamp: Date.now()
+          }
+        }
+      })
+      
+      console.log(`✅ Team join notification sent to captain: ${captainId}`)
+    } catch (error) {
+      console.error('❌ Failed to send Firebase notification:', error)
+      
+      // Fallback: Show local notification
+      const teamJoinNotification = FCMService.createTeamJoinNotification(
+        teamName,
+        newMemberName
+      )
+      FCMService.showNotification(teamJoinNotification)
+    }
     
     // Ensure push is initialized for the captain
     FCMService.initializeForUser(captainId).catch(console.error)
   }
 
-  static getUserNotifications(userId: string): Notification[] {
+  static getUserNotifications(userId: string): LocalNotification[] {
     const notifications = this.getStoredNotifications()
     return notifications.filter(notif => 
       notif.userId === userId || 

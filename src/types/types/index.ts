@@ -168,12 +168,16 @@ export interface BatsmanStats {
   name: string
   runs: number
   balls: number
+  ballsFaced: number
   fours: number
   sixes: number
   strikeRate: number
   isOut: boolean
   dismissalType?: DismissalType
   dismissedBy?: string
+  howOut?: DismissalType
+  bowlerOut?: string
+  fielderOut?: string
 }
 
 export interface BowlerStats {
@@ -184,6 +188,7 @@ export interface BowlerStats {
   wickets: number
   maidens: number
   economyRate: number
+  legalBalls: number
 }
 
 export interface Extras {
@@ -215,15 +220,24 @@ export interface Commentary {
 export interface Ball {
   ballNumber: number
   over: number
+  ball?: number
   bowler: string
   batsman: string
+  striker_id?: string
+  non_striker_id?: string
+  bowler_id?: string
   runs: number
   isWicket: boolean
   dismissalType?: DismissalType
+  dismissal_type?: DismissalType
   dismissedPlayer?: string
+  dismissed_batsman_id?: string
+  fielder_id?: string
   extraType?: ExtraType
+  extras?: ExtraType
   extraRuns: number
   isLegal: boolean
+  timestamp?: Date
 }
 
 export interface OverSummary {
@@ -251,5 +265,5 @@ export type MatchFormat = 'T20' | 'ODI' | 'Test' | 'Custom'
 export type PlayerRole = 'Batsman' | 'Bowler' | 'All-rounder' | 'Wicket-keeper'
 export type BowlingType = 'Fast' | 'Medium' | 'Spin' | 'Off-spin' | 'Leg-spin'
 export type MatchStatus = 'upcoming' | 'live' | 'completed' | 'abandoned'
-export type DismissalType = 'bowled' | 'caught' | 'lbw' | 'run-out' | 'stumped' | 'hit-wicket' | 'retired'
+export type DismissalType = 'bowled' | 'caught' | 'lbw' | 'run-out' | 'stumped' | 'hit-wicket' | 'retired' | 'retired hurt' | 'timed out'
 export type ExtraType = 'wide' | 'no-ball' | 'bye' | 'leg-bye' | 'penalty'
