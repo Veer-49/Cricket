@@ -16,6 +16,7 @@ import {
   MatchResult,
   Extras
 } from '@/types'
+import { FirebaseService } from '@/services/firebaseService'
 import { 
   Play, 
   Pause, 
@@ -32,7 +33,6 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { NotificationService } from '@/services/notificationService'
-import { FirebaseService } from '@/services/firebaseService'
 
 interface CricketScoringProps {
   teams: Team[]
@@ -46,6 +46,12 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
     team.players.some(player => player.userId === user?.id)
   )
 
+  // Team Code State
+  const [useTeamCodes, setUseTeamCodes] = useState(false)
+  const [team1Code, setTeam1Code] = useState('')
+  const [team2Code, setTeam2Code] = useState('')
+  const [loadingTeamCodes, setLoadingTeamCodes] = useState(false)
+
   // Match Setup State
   const [matchSetupComplete, setMatchSetupComplete] = useState(false)
   const [selectedTeam1, setSelectedTeam1] = useState<Team | null>(null)
@@ -53,12 +59,6 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
   const [matchFormat, setMatchFormat] = useState<MatchFormat>('T20')
   const [customOvers, setCustomOvers] = useState(20)
   const [venue, setVenue] = useState('')
-  
-  // Team Code Setup State
-  const [useTeamCodes, setUseTeamCodes] = useState(false)
-  const [team1Code, setTeam1Code] = useState('')
-  const [team2Code, setTeam2Code] = useState('')
-  const [loadingTeamCodes, setLoadingTeamCodes] = useState(false)
   
   // Toss State
   const [tossCompleted, setTossCompleted] = useState(false)
@@ -75,6 +75,7 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
   const [currentBatsmen, setCurrentBatsmen] = useState<string[]>([])
   const [currentBowler, setCurrentBowler] = useState<string>('')
   const [striker, setStriker] = useState<string>('')
+  const [nonStriker, setNonStriker] = useState<string>('')
 
   // Ball Input State
   const [runs, setRuns] = useState<number>(0)
@@ -83,6 +84,12 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
   const [extraType, setExtraType] = useState<ExtraType | null>(null)
   const [extraRuns, setExtraRuns] = useState(0)
 
+  // Wicket Handling State
+  const [dismissedBatsman, setDismissedBatsman] = useState<string>('')
+  const [fielder, setFielder] = useState<string>('')
+  const [showBatsmanSelection, setShowBatsmanSelection] = useState(false)
+  const [availableBatsmen, setAvailableBatsmen] = useState<string[]>([])
+
   const getOversForFormat = (format: MatchFormat): number => {
     switch (format) {
       case 'T20': return 20
@@ -90,59 +97,6 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
       case 'Test': return 999 // Unlimited
       case 'Custom': return customOvers
       default: return 20
-    }
-  }
-
-  const loadTeamFromCode = async (code: string): Promise<Team | null> => {
-    if (!code || code.length !== 6) return null
-    
-    try {
-      const team = await FirebaseService.getTeamByShortCode(code)
-      return team
-    } catch (error) {
-      console.error('Error loading team:', error)
-      return null
-    }
-  }
-
-  const handleLoadTeamsFromCodes = async () => {
-    if (!team1Code || !team2Code) {
-      toast.error('Please enter both team codes')
-      return
-    }
-
-    if (team1Code === team2Code) {
-      toast.error('Team codes must be different')
-      return
-    }
-
-    setLoadingTeamCodes(true)
-    
-    try {
-      const [team1, team2] = await Promise.all([
-        loadTeamFromCode(team1Code),
-        loadTeamFromCode(team2Code)
-      ])
-
-      if (!team1) {
-        toast.error(`Team with code "${team1Code}" not found`)
-        setLoadingTeamCodes(false)
-        return
-      }
-
-      if (!team2) {
-        toast.error(`Team with code "${team2Code}" not found`)
-        setLoadingTeamCodes(false)
-        return
-      }
-
-      setSelectedTeam1(team1)
-      setSelectedTeam2(team2)
-      toast.success('Teams loaded successfully!')
-    } catch (error) {
-      toast.error('Failed to load teams')
-    } finally {
-      setLoadingTeamCodes(false)
     }
   }
 
@@ -177,18 +131,80 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
     toast.success('Toss completed! Ready to start match.')
   }
 
+  const loadTeamFromCode = async (code: string): Promise<Team | null> => {
+    try {
+      const team = await FirebaseService.getTeamByShortCode(code)
+      return team
+    } catch (error) {
+      console.error('Error loading team:', error)
+      return null
+    }
+  }
+
+  const handleLoadTeamsFromCodes = async () => {
+    if (!team1Code || !team2Code) {
+      toast.error('Please enter both team codes')
+      return
+    }
+
+    if (team1Code === team2Code) {
+      toast.error('Team codes must be different')
+      return
+    }
+
+    if (team1Code.length !== 6 || team2Code.length !== 6) {
+      toast.error('Team codes must be exactly 6 characters')
+      return
+    }
+
+    setLoadingTeamCodes(true)
+    
+    try {
+      const [team1, team2] = await Promise.all([
+        loadTeamFromCode(team1Code),
+        loadTeamFromCode(team2Code)
+      ])
+
+      if (!team1) {
+        toast.error(`Team with code "${team1Code}" not found`)
+        setLoadingTeamCodes(false)
+        return
+      }
+
+      if (!team2) {
+        toast.error(`Team with code "${team2Code}" not found`)
+        setLoadingTeamCodes(false)
+        return
+      }
+
+      setSelectedTeam1(team1)
+      setSelectedTeam2(team2)
+      toast.success('Teams loaded successfully!')
+    } catch (error) {
+      toast.error('Failed to load teams. Please check the codes and try again.')
+    } finally {
+      setLoadingTeamCodes(false)
+    }
+  }
+
   const initializeMatch = async () => {
     if (!selectedTeam1 || !selectedTeam2 || !venue || !tossCompleted) {
       toast.error('Please complete team selection, venue, and toss before starting match')
       return
     }
 
-    // Determine which team bats first based on toss decision
-    const tossWinnerTeam = tossWinner === selectedTeam1.name ? selectedTeam1 : selectedTeam2
-    const tossLoserTeam = tossWinner === selectedTeam1.name ? selectedTeam2 : selectedTeam1
+    // Always use team IDs for innings data, regardless of selection method
+    const battingFirstTeamId = tossDecision === 'bat' ? 
+      (useTeamCodes ? 
+        (tossWinner === selectedTeam1.name ? selectedTeam1.id : selectedTeam2.id) : 
+        tossWinner
+      ) : 
+      (useTeamCodes ? 
+        (tossWinner === selectedTeam1.name ? selectedTeam2.id : selectedTeam1.id) :
+        (tossWinner === selectedTeam1.id ? selectedTeam2.id : selectedTeam1.id)
+      )
     
-    const battingFirst = tossDecision === 'bat' ? tossWinnerTeam.id : tossLoserTeam.id
-    const bowlingFirst = tossDecision === 'bat' ? tossLoserTeam.id : tossWinnerTeam.id
+    const bowlingFirstTeamId = battingFirstTeamId === selectedTeam1.id ? selectedTeam2.id : selectedTeam1.id
 
     const newMatch: Match = {
       id: Date.now().toString(),
@@ -204,8 +220,8 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
       totalOvers: getOversForFormat(matchFormat),
       currentBall: 0,
       innings: [{
-        battingTeam: battingFirst,
-        bowlingTeam: bowlingFirst,
+        battingTeam: battingFirstTeamId,
+        bowlingTeam: bowlingFirstTeamId,
         runs: 0,
         wickets: 0,
         overs: 0,
@@ -258,35 +274,124 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
     toast.success('🔔 Notifications sent to all team members!')
   }
 
-  const addBall = () => {
-    if (!currentMatch || !striker || !currentBowler) {
-      toast.error('Please select batsman and bowler')
+  // Universal Wicket Event Flow
+  const handleWicket = (wicketType: DismissalType, dismissedPlayer: string, bowlerGetsWicket: boolean = true) => {
+    if (!currentMatch) return
+
+    const updatedMatch = { ...currentMatch }
+    const currentInningsData = updatedMatch.innings[currentInnings - 1]
+    const battingTeam = currentMatch.team1.id === currentInningsData.battingTeam ? currentMatch.team1 : currentMatch.team2
+
+    // Update batsman stats
+    const batsmanIndex = currentInningsData.batsmen.findIndex(b => b.playerId === dismissedPlayer)
+    if (batsmanIndex !== -1) {
+      currentInningsData.batsmen[batsmanIndex].isOut = true
+      currentInningsData.batsmen[batsmanIndex].howOut = wicketType
+      currentInningsData.batsmen[batsmanIndex].bowlerOut = bowlerGetsWicket ? currentBowler : undefined
+      currentInningsData.batsmen[batsmanIndex].fielderOut = fielder || undefined
+      
+      // Only increment balls faced if striker was dismissed
+      if (dismissedPlayer === striker) {
+        currentInningsData.batsmen[batsmanIndex].ballsFaced += 1
+      }
+    }
+
+    // Update bowler stats (if bowler gets wicket)
+    if (bowlerGetsWicket) {
+      const bowlerIndex = currentInningsData.bowlers.findIndex(b => b.playerId === currentBowler)
+      if (bowlerIndex !== -1) {
+        currentInningsData.bowlers[bowlerIndex].wickets += 1
+        currentInningsData.bowlers[bowlerIndex].legalBalls += 1
+      }
+    }
+
+    // Update team wickets
+    currentInningsData.wickets += 1
+
+    // Check innings end
+    if (currentInningsData.wickets >= 10) {
+      if (currentInnings === 1) {
+        toast.success('First innings completed - All out!')
+        startSecondInnings(updatedMatch)
+      } else {
+        endMatch(updatedMatch)
+      }
       return
     }
 
-    const isLegal = !extraType || (extraType !== 'wide' && extraType !== 'no-ball')
-    const totalRuns = runs + extraRuns
+    // Show batsman selection modal
+    const outBatsmen = currentInningsData.batsmen.filter(b => b.isOut).map(b => b.playerId)
+    const available = battingTeam.players
+      .filter(p => !outBatsmen.includes(p.userId) && p.userId !== striker && p.userId !== nonStriker)
+      .map(p => p.userId)
+    
+    setAvailableBatsmen(available)
+    setShowBatsmanSelection(true)
+    setCurrentMatch(updatedMatch)
+  }
 
-    const newBall: Ball = {
-      ballNumber: currentMatch.currentBall + 1,
-      over: Math.floor(currentMatch.currentBall / 6) + 1,
-      bowler: currentBowler,
-      batsman: striker,
-      runs,
-      isWicket,
-      dismissalType: isWicket ? dismissalType : undefined,
-      dismissedPlayer: isWicket ? striker : undefined,
-      extraType: extraType || undefined,
-      extraRuns,
-      isLegal
+  const selectNewBatsman = (newBatsmanId: string) => {
+    // Update striker/non-striker based on who was dismissed
+    if (dismissedBatsman === striker) {
+      setStriker(newBatsmanId)
+    } else if (dismissedBatsman === nonStriker) {
+      setNonStriker(newBatsmanId)
     }
 
-    // Update match state
+    setShowBatsmanSelection(false)
+    setDismissedBatsman('')
+    setFielder('')
+    
+    // Reset ball input after batsman selection
+    setRuns(0)
+    setIsWicket(false)
+    setExtraType(null)
+    setExtraRuns(0)
+    setDismissalType('bowled')
+    
+    toast.success('New batsman selected!')
+  }
+
+  const addBallWithRuns = (runsScored: number) => {
+    if (!currentMatch || !striker || !nonStriker || !currentBowler) {
+      toast.error('Please select both batsmen and bowler')
+      return
+    }
+
+    // Wide and No Ball are illegal balls (don't count), Bye and Leg Bye are legal balls (count)
+    const isLegal = !extraType || (extraType === 'bye' || extraType === 'leg-bye')
+    const totalRuns = runsScored + extraRuns
+    const currentOver = Math.floor(currentMatch.currentBall / 6) + 1
+    const ballInOver = (currentMatch.currentBall % 6) + 1
+
+    // Enhanced Ball Structure
+    const newBall: Ball = {
+      ballNumber: currentMatch.currentBall + 1,
+      over: currentOver,
+      ball: ballInOver,
+      bowler: currentBowler,  // Required by Ball interface
+      batsman: striker,       // Required by Ball interface
+      isWicket: !!isWicket,   // Required by Ball interface
+      striker_id: striker,
+      non_striker_id: nonStriker,
+      bowler_id: currentBowler,
+      dismissalType: isWicket ? dismissalType : undefined,
+      dismissed_batsman_id: isWicket ? (dismissalType === 'run-out' ? dismissedBatsman : striker) : undefined,
+      fielder_id: isWicket && fielder ? fielder : undefined,
+      runs: runsScored,
+      extras: extraType || undefined,
+      extraRuns,
+      isLegal,
+      timestamp: new Date()
+    }
+
     const updatedMatch = { ...currentMatch }
     const currentInningsData = updatedMatch.innings[currentInnings - 1]
 
     // Update runs
     currentInningsData.runs += totalRuns
+    
+    // Update ball count for legal balls
     if (isLegal) {
       currentInningsData.balls += 1
       updatedMatch.currentBall += 1
@@ -295,11 +400,19 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
     // Update overs
     if (isLegal && currentInningsData.balls % 6 === 0) {
       currentInningsData.overs += 1
+      // Swap striker/non-striker at end of over (unless wicket)
+      if (!isWicket) {
+        const tempStriker = striker
+        setStriker(nonStriker)
+        setNonStriker(tempStriker)
+      }
     }
 
-    // Update wickets
-    if (isWicket) {
-      currentInningsData.wickets += 1
+    // Handle strike rotation for runs
+    if (!isWicket && isLegal && runsScored % 2 === 1) {
+      const tempStriker = striker
+      setStriker(nonStriker)
+      setNonStriker(tempStriker)
     }
 
     // Update extras
@@ -311,6 +424,15 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
         case 'leg-bye': currentInningsData.extras.legByes += extraRuns; break
         case 'penalty': currentInningsData.extras.penalties += extraRuns; break
       }
+    }
+
+    // Handle wicket
+    if (isWicket) {
+      const wicketBatsman = dismissalType === 'run-out' ? dismissedBatsman : striker
+      const bowlerGetsWicket = !['run-out', 'retired hurt', 'timed out'].includes(dismissalType)
+      
+      setDismissedBatsman(wicketBatsman)
+      handleWicket(dismissalType, wicketBatsman, bowlerGetsWicket)
     }
 
     // Add commentary
@@ -327,32 +449,34 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
     }
     updatedMatch.commentary.push(commentary)
 
-    // Check for innings end
+    // Check for innings end (overs completed)
     const maxOvers = updatedMatch.totalOvers || 20
     const oversCompleted = Math.floor(currentInningsData.balls / 6)
-    const allOut = currentInningsData.wickets >= 10
 
-    if ((oversCompleted >= maxOvers || allOut) && currentInnings === 1) {
-      // End of first innings
+    if (oversCompleted >= maxOvers && currentInnings === 1) {
       toast.success('First innings completed!')
       startSecondInnings(updatedMatch)
-    } else if ((oversCompleted >= maxOvers || allOut || 
+    } else if ((oversCompleted >= maxOvers || 
                (currentInnings === 2 && currentInningsData.runs > updatedMatch.innings[0].runs)) 
                && currentInnings === 2) {
-      // End of match
       endMatch(updatedMatch)
     } else {
       setCurrentMatch(updatedMatch)
     }
     
-    // Reset ball input
-    setRuns(0)
-    setIsWicket(false)
-    setExtraType(null)
-    setExtraRuns(0)
+    // Reset ball input (only if not showing batsman selection)
+    if (!isWicket || !showBatsmanSelection) {
+      setRuns(0)
+      setIsWicket(false)
+      setExtraType(null)
+      setExtraRuns(0)
+      setDismissalType('bowled')
+      setFielder('')
+    }
 
-    toast.success('Ball added successfully!')
+    toast.success(`${runsScored} run${runsScored !== 1 ? 's' : ''} added!`)
   }
+
 
   const startSecondInnings = (match: Match) => {
     const firstInnings = match.innings[0]
@@ -383,6 +507,7 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
     setCurrentMatch(updatedMatch)
     setCurrentInnings(2)
     setStriker('')
+    setNonStriker('')
     setCurrentBowler('')
     toast.success('Second innings started!')
   }
@@ -434,11 +559,20 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
     toast.success(`Match completed! ${result.winner} ${result.type === 'tie' ? '' : 'won'}`)
   }
 
-  const generateCommentary = (ball: Ball): string => {
-    let description = `${ball.bowler} to ${ball.batsman}`
+  const generateCommentary = (ball: any): string => {
+    const bowlerName = getPlayerName(ball.bowler_id || ball.bowler)
+    const strikerName = getPlayerName(ball.striker_id || ball.batsman)
     
-    if (ball.isWicket) {
-      description += `, OUT! ${ball.dismissalType}`
+    let description = `${bowlerName} to ${strikerName}`
+    
+    if (ball.dismissal_type || ball.isWicket) {
+      const dismissalType = ball.dismissal_type || ball.dismissalType
+      description += `, OUT! ${dismissalType}`
+      
+      if (ball.fielder_id && dismissalType === 'caught') {
+        const fielderName = getPlayerName(ball.fielder_id)
+        description += ` by ${fielderName}`
+      }
     } else if (ball.runs === 0) {
       description += ', dot ball'
     } else if (ball.runs === 4) {
@@ -449,11 +583,21 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
       description += `, ${ball.runs} run${ball.runs > 1 ? 's' : ''}`
     }
 
-    if (ball.extraType) {
-      description += ` (${ball.extraType})`
+    if (ball.extras || ball.extraType) {
+      const extra = ball.extras || ball.extraType
+      description += ` (${extra})`
     }
 
     return description
+  }
+
+  const getPlayerName = (playerId: string): string => {
+    if (!currentMatch) return playerId
+    
+    // Search in both teams
+    const allPlayers = [...currentMatch.team1.players, ...currentMatch.team2.players]
+    const player = allPlayers.find(p => p.userId === playerId)
+    return player?.name || playerId
   }
 
   const calculateRunRate = (runs: number, overs: number, balls: number): number => {
@@ -509,13 +653,11 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
         >
           <h2 className="text-2xl font-bold text-gray-800 mb-6">Cricket Match Setup</h2>
           
-          {userTeams.length < 2 && !useTeamCodes && (
+          {userTeams.length < 2 && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
               <p className="text-yellow-800 text-sm">
                 <strong>Note:</strong> You need at least 2 teams to start a match. 
                 You currently have {userTeams.length} team{userTeams.length !== 1 ? 's' : ''}.
-                <br />
-                <strong>Tip:</strong> You can also use team codes to start scoring for any teams!
               </p>
             </div>
           )}
@@ -525,50 +667,33 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
             <div className="border-b pb-4">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">Step 1: Select Teams</h3>
               
-              {/* Team Selection Mode Toggle */}
-              <div className="mb-6">
-                <div className="flex items-center space-x-4 mb-4">
+              {/* Toggle between My Teams and Team Codes */}
+              <div className="flex justify-center mb-6">
+                <div className="bg-gray-100 p-1 rounded-lg">
                   <button
-                    onClick={() => {
-                      setUseTeamCodes(false)
-                      setSelectedTeam1(null)
-                      setSelectedTeam2(null)
-                      setTeam1Code('')
-                      setTeam2Code('')
-                    }}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    onClick={() => setUseTeamCodes(false)}
+                    className={`px-4 py-2 rounded-md font-medium transition-colors ${
                       !useTeamCodes 
                         ? 'bg-cricket-primary text-white' 
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        : 'text-gray-600 hover:text-gray-800'
                     }`}
                   >
                     My Teams
                   </button>
                   <button
-                    onClick={() => {
-                      setUseTeamCodes(true)
-                      setSelectedTeam1(null)
-                      setSelectedTeam2(null)
-                    }}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    onClick={() => setUseTeamCodes(true)}
+                    className={`px-4 py-2 rounded-md font-medium transition-colors ${
                       useTeamCodes 
                         ? 'bg-cricket-primary text-white' 
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        : 'text-gray-600 hover:text-gray-800'
                     }`}
                   >
                     Team Codes
                   </button>
                 </div>
-                <p className="text-sm text-gray-600">
-                  {useTeamCodes 
-                    ? 'Enter 6-character team codes to start scoring for any teams'
-                    : 'Select from teams you are a member of'
-                  }
-                </p>
               </div>
 
               {!useTeamCodes ? (
-                /* My Teams Selection */
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Team A</label>
@@ -599,22 +724,29 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
                   </div>
                 </div>
               ) : (
-                /* Team Codes Input */
                 <div className="space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-blue-800 text-sm mb-2">
+                      <strong>How to find team codes:</strong>
+                    </p>
+                    <ul className="text-red-600 text-sm space-y-1">
+                      <li>• Go to Team Management → View team details</li>
+                      <li>• Each team has a unique 6-character code</li>
+                      <li>• Ask team captains for their team codes</li>
+                    </ul>
+                  </div>
+                  
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Team A Code</label>
                       <input
                         type="text"
                         value={team1Code}
-                        onChange={(e) => setTeam1Code(e.target.value.toUpperCase().slice(0, 6))}
+                        onChange={(e) => setTeam1Code(e.target.value.toUpperCase())}
                         placeholder="Enter 6-character code"
-                        className="input-field text-gray-900"
                         maxLength={6}
+                        className="input-field text-gray-900 uppercase"
                       />
-                      {selectedTeam1 && (
-                        <p className="text-sm text-green-600 mt-1">✓ {selectedTeam1.name}</p>
-                      )}
                     </div>
 
                     <div>
@@ -622,14 +754,11 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
                       <input
                         type="text"
                         value={team2Code}
-                        onChange={(e) => setTeam2Code(e.target.value.toUpperCase().slice(0, 6))}
+                        onChange={(e) => setTeam2Code(e.target.value.toUpperCase())}
                         placeholder="Enter 6-character code"
-                        className="input-field text-gray-900"
                         maxLength={6}
+                        className="input-field text-gray-900 uppercase"
                       />
-                      {selectedTeam2 && (
-                        <p className="text-sm text-green-600 mt-1">✓ {selectedTeam2.name}</p>
-                      )}
                     </div>
                   </div>
                   
@@ -637,20 +766,20 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
                     <button
                       onClick={handleLoadTeamsFromCodes}
                       disabled={!team1Code || !team2Code || team1Code.length !== 6 || team2Code.length !== 6 || loadingTeamCodes}
-                      className="bg-cricket-primary hover:bg-cricket-secondary text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="bg-cricket-primary text-white px-6 py-2 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {loadingTeamCodes ? 'Loading Teams...' : 'Load Teams'}
                     </button>
                   </div>
                   
-                  {useTeamCodes && (!selectedTeam1 || !selectedTeam2) && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <p className="text-blue-800 text-sm">
-                        <strong>How to find team codes:</strong>
-                        <br />• Ask team captains for their 6-character team codes
-                        <br />• Team codes are displayed in the Team Management section
-                        <br />• Each team has a unique code like "ABC123"
-                      </p>
+                  {selectedTeam1 && selectedTeam2 && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <p className="text-green-800 font-medium mb-2">Teams loaded successfully!</p>
+                      <div className="flex justify-center gap-4">
+                        <span className="bg-white px-3 py-1 rounded border text-black">{selectedTeam1.name}</span>
+                        <span className="text-black">vs</span>
+                        <span className="bg-white px-3 py-1 rounded border text-black">{selectedTeam2.name}</span>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -748,14 +877,14 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
                       className="w-40 h-40 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex flex-col items-center justify-center text-white shadow-2xl border-4 border-green-300"
                     >
                       <div className="text-xl font-bold mb-1">{coinResult.toUpperCase()}</div>
-                        {tossWinner && (
-                          <div className="text-center px-1">
-                            <div className="text-xs font-medium">WINNER</div>
-                            <div className="text-sm font-bold leading-tight">
-                              {useTeamCodes ? tossWinner : userTeams.find(t => t.id === tossWinner)?.name}
-                            </div>
+                      {tossWinner && (
+                        <div className="text-center px-1">
+                          <div className="text-xs font-medium">WINNER</div>
+                          <div className="text-sm font-bold leading-tight">
+                            {userTeams.find(t => t.id === tossWinner)?.name}
                           </div>
-                        )}
+                        </div>
+                      )}
                     </motion.div>
                   </div>
 
@@ -771,9 +900,9 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
                     </label>
                     <div className="flex justify-center gap-6 mb-6">
                       <button
-                        onClick={() => setTossWinner(selectedTeam1?.name || '')}
+                        onClick={() => setTossWinner(useTeamCodes ? selectedTeam1?.name || '' : selectedTeam1?.id || '')}
                         className={`py-3 px-8 rounded-lg font-bold text-lg border-2 transition-all ${
-                          tossWinner === selectedTeam1?.name 
+                          tossWinner === (useTeamCodes ? selectedTeam1?.name : selectedTeam1?.id) 
                             ? 'bg-cricket-primary text-white border-cricket-primary shadow-lg' 
                             : 'bg-gray-200 text-gray-700 border-gray-300'
                         }`}
@@ -781,9 +910,9 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
                         🏏 {selectedTeam1?.name}
                       </button>
                       <button
-                        onClick={() => setTossWinner(selectedTeam2?.name || '')}
+                        onClick={() => setTossWinner(useTeamCodes ? selectedTeam2?.name || '' : selectedTeam2?.id || '')}
                         className={`py-3 px-8 rounded-lg font-bold text-lg border-2 transition-all ${
-                          tossWinner === selectedTeam2?.name 
+                          tossWinner === (useTeamCodes ? selectedTeam2?.name : selectedTeam2?.id) 
                             ? 'bg-cricket-primary text-white border-cricket-primary shadow-lg' 
                             : 'bg-gray-200 text-gray-700 border-gray-300'
                         }`}
@@ -796,7 +925,7 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
                   {tossWinner && (
                     <div>
                       <label className="block text-lg font-medium text-gray-700 mb-4">
-                        {tossWinner} chooses to:
+                        {useTeamCodes ? tossWinner : userTeams.find(t => t.id === tossWinner)?.name} chooses to:
                       </label>
                       <div className="flex justify-center gap-6">
                         <button
@@ -834,7 +963,7 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
               ) : (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
                   <p className="text-blue-800 font-medium">
-                    ✅ Toss Complete! {tossWinner} won and chose to {tossDecision === 'bat' ? 'bat' : 'bowl'} first.
+                    ✅ Toss Complete! {useTeamCodes ? tossWinner : userTeams.find(t => t.id === tossWinner)?.name} won and chose to {tossDecision === 'bat' ? 'bat' : 'bowl'} first.
                   </p>
                 </div>
               )}
@@ -889,18 +1018,131 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
         animate={{ opacity: 1, y: 0 }}
         className="card p-6"
       >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center">
-            <p className="text-4xl font-bold text-cricket-primary">
-              {currentInningsData?.runs}/{currentInningsData?.wickets}
-            </p>
-            <p className="text-gray-600">
-              {Math.floor((currentInningsData?.balls || 0) / 6)}.{(currentInningsData?.balls || 0) % 6} overs
-            </p>
+        <div className="space-y-6">
+          {/* Current Score */}
+          <div className="grid grid-cols-3 gap-6 bg-white p-4 rounded-lg shadow-sm">
+            <div className="text-center">
+              <p className="text-sm font-medium text-gray-600">Score</p>
+              <p className="text-3xl font-bold text-cricket-primary">
+                {currentInningsData?.runs || 0}<span className="text-lg">/{currentInningsData?.wickets || 0}</span>
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-medium text-gray-600">Overs</p>
+              <p className="text-2xl font-bold text-gray-800">
+                {Math.floor((currentInningsData?.balls || 0) / 6)}.{(currentInningsData?.balls || 0) % 6}
+              </p>
+            </div>
+            {currentInnings === 2 && currentMatch?.innings[0] && (
+              <div className="text-center">
+                <p className="text-sm font-medium text-gray-600">Target</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {currentMatch.innings[0].runs + 1}
+                </p>
+              </div>
+            )}
+            
+            {/* Current Partnership - Full Width */}
+            {currentInningsData?.batsmen && striker && nonStriker && (
+              <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 p-4 rounded-lg shadow-md">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-lg font-bold text-blue-800">Partnership</h3>
+                  <div className="text-3xl font-extrabold text-blue-700">
+                    {currentInningsData.batsmen
+                      .filter(b => b.playerId === striker || b.playerId === nonStriker)
+                      .reduce((total, b) => total + (b.runs || 0), 0)}
+                    <span className="ml-2 text-base font-normal">runs</span>
+                  </div>
+                </div>
+                
+                {battingTeam && (
+                  <div className="grid grid-cols-2 gap-4">
+                    {[striker, nonStriker].filter(Boolean).map((playerId) => {
+                      const player = battingTeam?.players?.find(p => p.userId === playerId);
+                      const stats = currentInningsData?.batsmen?.find(b => b.playerId === playerId) || {} as BatsmanStats;
+                      const isStriker = playerId === striker;
+                      
+                      if (!player || !stats) return null;
+                      
+                      return (
+                        <div 
+                          key={playerId} 
+                          className={`p-3 rounded-lg ${isStriker ? 'bg-white shadow-sm' : 'bg-blue-50'}`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <p className="font-semibold text-gray-900">
+                                {player.name?.split(' ')[0]}
+                                {isStriker && <span className="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">STRIKER</span>}
+                              </p>
+                              <p className="text-2xl font-bold text-blue-700">
+                                {stats.runs || 0}
+                                <span className="text-sm font-normal text-gray-500 ml-1">
+                                  ({stats.ballsFaced || 0} balls)
+                                </span>
+                                {!stats.isOut && <span className="text-green-600 ml-1">*</span>}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <div className="flex gap-2 text-sm">
+                                <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded">
+                                  {stats.fours || 0}×4
+                                </span>
+                                <span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded">
+                                  {stats.sixes || 0}×6
+                                </span>
+                              </div>
+                              <div className="mt-1 text-xs text-gray-500">
+                                SR: {stats.ballsFaced ? Math.round(((stats.runs || 0) / stats.ballsFaced) * 100) : 0}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                
+                <div className="mt-3 pt-3 border-t border-blue-200 text-xs text-gray-500">
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div>
+                      <div className="font-medium">Partnership</div>
+                      <div className="text-sm font-semibold text-blue-700">
+                        {currentInningsData.batsmen
+                          ?.filter(b => b.playerId === striker || b.playerId === nonStriker)
+                          ?.reduce((total, b) => total + (b.runs || 0), 0) || 0}
+                        <span className="ml-1">runs</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium">Balls</div>
+                      <div className="text-sm font-semibold text-blue-700">
+                        {currentInningsData.batsmen
+                          ?.filter(b => b.playerId === striker || b.playerId === nonStriker)
+                          ?.reduce((total, b) => total + (b.ballsFaced || 0), 0) || 0}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium">Run Rate</div>
+                      <div className="text-sm font-semibold text-blue-700">
+                        {calculateRunRate(
+                          currentInningsData.batsmen
+                            .filter(b => b.playerId === striker || b.playerId === nonStriker)
+                            .reduce((total, b) => total + (b.runs || 0), 0),
+                          Math.floor((currentInningsData.balls || 0) / 6),
+                          (currentInningsData.balls || 0) % 6
+                        ).toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           
+          {/* Run Rate */}
           <div className="text-center">
-            <p className="text-lg font-semibold text-gray-800">Run Rate</p>
+            <p className="text-lg font-semibold text-black">Run Rate</p>
             <p className="text-2xl font-bold text-green-600">
               {calculateRunRate(
                 currentInningsData?.runs || 0, 
@@ -908,18 +1150,43 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
                 (currentInningsData?.balls || 0) % 6
               ).toFixed(2)}
             </p>
+            
+            {/* Required Run Rate (2nd Innings) */}
+            {currentInnings === 2 && currentMatch?.innings[0] && (
+              <div className="mt-2">
+                <p className="text-sm font-semibold text-black">Required RR:</p>
+                <p className="text-lg font-bold text-red-600">
+                  {calculateRequiredRunRate(
+                    (currentMatch?.innings[0]?.runs || 0) + 1,
+                    currentInningsData?.runs || 0,
+                    Math.max(0, (currentMatch?.totalOvers || 20) * 6 - (currentInningsData?.balls || 0)) / 6
+                  ).toFixed(2)}
+                </p>
+              </div>
+            )}
           </div>
 
-          {currentInnings === 2 && (
+          {/* Runs Needed (2nd Innings) */}
+          {currentInnings === 2 && currentMatch?.innings?.[0] && currentInningsData && (
             <div className="text-center">
-              <p className="text-lg font-semibold text-gray-800">Required RR</p>
-              <p className="text-2xl font-bold text-red-600">
-                {calculateRequiredRunRate(
-                  (currentMatch?.innings[0]?.runs || 0) + 1,
-                  currentInningsData?.runs || 0,
-                  (currentMatch?.totalOvers || 20) - Math.floor((currentInningsData?.balls || 0) / 6)
-                ).toFixed(2)}
-              </p>
+              <div className="text-center">
+                {currentInningsData?.runs > currentMatch.innings[0]?.runs ? (
+                  <div className="text-3xl font-bold text-green-600">
+                    Winning by {10 - (currentInningsData?.wickets || 0)} wkts
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-4xl font-extrabold text-red-600">
+                      Need {(currentMatch.innings[0]?.runs || 0) - (currentInningsData?.runs || 0) + 1}
+                    </div>
+                    <div className="text-xl font-semibold text-gray-700 mt-1">
+                      in {Math.max(0, (currentMatch.totalOvers || 20) * 6 - (currentInningsData?.balls || 0))} balls
+                    </div>
+                  </>
+                )}
+              </div>
+              
+              {/* Runs needed section removed as per user request */}
             </div>
           )}
         </div>
@@ -931,11 +1198,12 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
         animate={{ opacity: 1, y: 0 }}
         className="card p-6"
       >
-        <h3 className="text-xl font-bold text-gray-800 mb-4">Ball Input</h3>
+        <h3 className="text-3xl font-bold text-black mb-6 text-center">🏏 Live Cricket Scoring</h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {/* Player Selection Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 bg-gray-50 p-6 rounded-xl border-2 border-gray-200">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Striker</label>
+            <label className="block text-lg font-bold text-black mb-3">🏏 Striker</label>
             <select
               value={striker}
               onChange={(e) => setStriker(e.target.value)}
@@ -949,7 +1217,23 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Bowler</label>
+            <label className="block text-lg font-bold text-black mb-3">🏃 Non-Striker</label>
+            <select
+              value={nonStriker}
+              onChange={(e) => setNonStriker(e.target.value)}
+              className="input-field"
+            >
+              <option value="">Select non-striker</option>
+              {battingTeam?.players
+                .filter(player => player.userId !== striker)
+                .map(player => (
+                  <option key={player.userId} value={player.userId}>{player.name}</option>
+                ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-lg font-bold text-black mb-3">⚾ Bowler</label>
             <select
               value={currentBowler}
               onChange={(e) => setCurrentBowler(e.target.value)}
@@ -961,77 +1245,251 @@ export default function CricketScoring({ teams, user }: CricketScoringProps) {
               ))}
             </select>
           </div>
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Runs</label>
-            <div className="flex space-x-2">
-              {[0, 1, 2, 3, 4, 6].map(run => (
-                <button
-                  key={run}
-                  onClick={() => setRuns(run)}
-                  className={`px-3 py-2 rounded-lg font-medium ${
-                    runs === run ? 'bg-cricket-primary text-white' : 'bg-gray-100 text-gray-800'
-                  }`}
-                >
-                  {run}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Extras</label>
-            <select
-              value={extraType || ''}
-              onChange={(e) => setExtraType(e.target.value as ExtraType || null)}
-              className="input-field"
+        {/* Runs Scoring Row */}
+        <div className="mb-8 bg-white p-6 rounded-lg border-2 border-gray-300">
+          <label className="block text-2xl font-bold text-black mb-6 text-center">🏏 Score Runs</label>
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-4 justify-items-center">
+            <button
+              onClick={() => addBallWithRuns(0)}
+              className="w-20 h-20 rounded-full font-bold text-2xl bg-gray-700 text-black border-4 border-gray-600 shadow-lg hover:shadow-xl transition-all hover:scale-110"
             >
-              <option value="">No Extra</option>
-              <option value="wide">Wide</option>
-              <option value="no-ball">No Ball</option>
-              <option value="bye">Bye</option>
-              <option value="leg-bye">Leg Bye</option>
-            </select>
+              0
+            </button>
+            <button
+              onClick={() => addBallWithRuns(1)}
+              className="w-20 h-20 rounded-full font-bold text-2xl bg-blue-600 text-black border-4 border-blue-500 shadow-lg hover:shadow-xl transition-all hover:scale-110"
+            >
+              1
+            </button>
+            <button
+              onClick={() => addBallWithRuns(2)}
+              className="w-20 h-20 rounded-full font-bold text-2xl bg-blue-600 text-black border-4 border-blue-500 shadow-lg hover:shadow-xl transition-all hover:scale-110"
+            >
+              2
+            </button>
+            <button
+              onClick={() => addBallWithRuns(3)}
+              className="w-20 h-20 rounded-full font-bold text-2xl bg-blue-600 text-black border-4 border-blue-500 shadow-lg hover:shadow-xl transition-all hover:scale-110"
+            >
+              3
+            </button>
+            <button
+              onClick={() => addBallWithRuns(4)}
+              className="w-20 h-20 rounded-full font-bold text-2xl bg-green-600 text-black border-4 border-green-500 shadow-lg hover:shadow-xl transition-all hover:scale-110"
+            >
+              4
+            </button>
+            <button
+              onClick={() => addBallWithRuns(6)}
+              className="w-20 h-20 rounded-full font-bold text-2xl bg-red-600 text-black border-4 border-red-500 shadow-lg hover:shadow-xl transition-all hover:scale-110"
+            >
+              6
+            </button>
           </div>
         </div>
 
-        <div className="flex items-center space-x-4 mb-4">
-          <label className="flex items-center">
-            <input
-              type="checkbox"
-              checked={isWicket}
-              onChange={(e) => setIsWicket(e.target.checked)}
-              className="mr-2"
-            />
-            Wicket
-          </label>
-
-          {isWicket && (
-            <select
-              value={dismissalType}
-              onChange={(e) => setDismissalType(e.target.value as DismissalType)}
-              className="input-field"
+        {/* Extras Row */}
+        <div className="mb-6 bg-white p-6 rounded-lg border-2 border-gray-300">
+          <label className="block text-2xl font-bold text-black mb-6 text-center">⚡ Extras</label>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 justify-items-center mb-4">
+            <button
+              onClick={() => setExtraType('wide')}
+              className={`w-32 h-16 font-bold text-lg rounded-xl border-4 shadow-lg ${
+                extraType === 'wide' ? 'bg-yellow-600 text-black border-yellow-500' : 'bg-yellow-500 text-black border-yellow-400'
+              }`}
             >
-              <option value="bowled">Bowled</option>
-              <option value="caught">Caught</option>
-              <option value="lbw">LBW</option>
-              <option value="run-out">Run Out</option>
-              <option value="stumped">Stumped</option>
-              <option value="hit-wicket">Hit Wicket</option>
-            </select>
+              Wide
+            </button>
+            <button
+              onClick={() => setExtraType('no-ball')}
+              className={`w-32 h-16 font-bold text-lg rounded-xl border-4 shadow-lg ${
+                extraType === 'no-ball' ? 'bg-orange-600 text-black border-orange-500' : 'bg-orange-500 text-black border-orange-400'
+              }`}
+            >
+              No Ball
+            </button>
+            <button
+              onClick={() => setExtraType('bye')}
+              className={`w-32 h-16 font-bold text-lg rounded-xl border-4 shadow-lg ${
+                extraType === 'bye' ? 'bg-blue-600 text-black border-blue-500' : 'bg-blue-500 text-black border-blue-400'
+              }`}
+            >
+              Bye
+            </button>
+            <button
+              onClick={() => setExtraType('leg-bye')}
+              className={`w-32 h-16 font-bold text-lg rounded-xl border-4 shadow-lg ${
+                extraType === 'leg-bye' ? 'bg-purple-600 text-black border-purple-500' : 'bg-purple-500 text-black border-purple-400'
+              }`}
+            >
+              Leg Bye
+            </button>
+          </div>
+
+          {/* Extra Runs Input */}
+          {extraType && (
+            <div className="text-center">
+              <label className="block text-lg font-bold text-black mb-3">
+                Additional Runs from {extraType === 'wide' ? 'Wide' : extraType === 'no-ball' ? 'No Ball' : extraType === 'bye' ? 'Bye' : 'Leg Bye'}:
+              </label>
+              <div className="flex justify-center space-x-2 mb-4">
+                {[0, 1, 2, 3, 4].map(run => (
+                  <button
+                    key={run}
+                    onClick={() => setExtraRuns(run)}
+                    className={`w-12 h-12 rounded-full font-bold text-lg border-2 ${
+                      extraRuns === run ? 'bg-green-600 text-black border-green-500' : 'bg-gray-200 text-black border-gray-300'
+                    }`}
+                  >
+                    {run}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => {
+                  const totalExtraRuns = 1 + extraRuns; // 1 for the extra + additional runs
+                  addBallWithRuns(0); // 0 runs off the bat, extras handled separately
+                }}
+                className="px-8 py-3 bg-green-600 text-black rounded-xl font-bold text-lg border-2 border-green-500 shadow-lg"
+              >
+                Record {extraType === 'wide' ? 'Wide' : extraType === 'no-ball' ? 'No Ball' : extraType === 'bye' ? 'Bye' : 'Leg Bye'} + {extraRuns} runs
+              </button>
+            </div>
           )}
         </div>
 
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={addBall}
-          className="btn-primary"
-        >
-          <Plus className="inline w-4 h-4 mr-2" />
-          Add Ball
-        </motion.button>
+        {/* Wicket Details (shown when wicket is checked) */}
+        {isWicket && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Dismissal Type</label>
+                <select
+                  value={dismissalType}
+                  onChange={(e) => setDismissalType(e.target.value as DismissalType)}
+                  className="input-field"
+                >
+                  <option value="bowled">Bowled</option>
+                  <option value="caught">Caught</option>
+                  <option value="lbw">LBW</option>
+                  <option value="run-out">Run Out</option>
+                  <option value="stumped">Stumped</option>
+                  <option value="hit-wicket">Hit Wicket</option>
+                  <option value="retired hurt">Retired Hurt</option>
+                  <option value="timed out">Timed Out</option>
+                </select>
+              </div>
+              
+              {(dismissalType === 'run-out') && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Who was run out?</label>
+                  <select
+                    value={dismissedBatsman}
+                    onChange={(e) => setDismissedBatsman(e.target.value)}
+                    className="input-field"
+                  >
+                    <option value="">Select batsman</option>
+                    <option value={striker}>Striker ({getPlayerName(striker)})</option>
+                    <option value={nonStriker}>Non-Striker ({getPlayerName(nonStriker)})</option>
+                  </select>
+                </div>
+              )}
+              
+              {(['caught', 'stumped', 'run-out'].includes(dismissalType)) && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Fielder</label>
+                  <select
+                    value={fielder}
+                    onChange={(e) => setFielder(e.target.value)}
+                    className="input-field"
+                  >
+                    <option value="">Select Fielder</option>
+                    {bowlingTeam?.players.map(player => (
+                      <option key={player.userId} value={player.userId}>{player.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Wicket Section */}
+        <div className="mb-6 bg-white p-6 rounded-lg border-2 border-gray-300">
+          <div className="text-center">
+            <label className="inline-flex items-center text-2xl cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isWicket}
+                onChange={(e) => setIsWicket(e.target.checked)}
+                className="mr-4 w-6 h-6 text-red-600 rounded focus:ring-red-500"
+              />
+              <span className="font-bold text-black">🎯 Wicket</span>
+            </label>
+          </div>
+
+          {isWicket && (
+            <div className="mt-6 text-center">
+              <button
+                onClick={() => addBallWithRuns(0)}
+                className="px-12 py-4 bg-red-600 hover:bg-red-700 text-black rounded-xl font-bold text-xl border-2 border-red-500 shadow-lg hover:shadow-xl transition-all transform hover:scale-105"
+              >
+                🎯 Record Wicket
+              </button>
+            </div>
+          )}
+        </div>
       </motion.div>
+
+      {/* Batsman Selection Modal */}
+      <AnimatePresence>
+        {showBatsmanSelection && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
+            >
+              <h3 className="text-xl font-bold text-black mb-4">Select New Batsman</h3>
+              <p className="text-black mb-4">
+                {getPlayerName(dismissedBatsman)} is out. Select the next batsman:
+              </p>
+              
+              <div className="space-y-2 mb-6">
+                {availableBatsmen.map(batsmanId => {
+                  const battingTeam = currentMatch?.team1.id === currentMatch?.innings[currentInnings - 1]?.battingTeam ? 
+                    currentMatch?.team1 : currentMatch?.team2
+                  const player = battingTeam?.players.find(p => p.userId === batsmanId)
+                  
+                  return (
+                    <button
+                      key={batsmanId}
+                      onClick={() => selectNewBatsman(batsmanId)}
+                      className="w-full p-3 text-left bg-gray-50 hover:bg-cricket-primary text-black hover:text-black rounded-lg transition-colors"
+                    >
+                      {player?.name || batsmanId}
+                    </button>
+                  )
+                })}
+              </div>
+              
+              {availableBatsmen.length === 0 && (
+                <p className="text-red-600 text-center">
+                  No more batsmen available. Innings will end.
+                </p>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Commentary */}
       <motion.div
