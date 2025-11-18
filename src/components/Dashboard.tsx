@@ -45,7 +45,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       case 'teams':
         return <TeamManagementFirebase user={user} />
       case 'scoring':
-        return <CricketScoring teams={teams} user={user} />
+        return <CricketScoring user={user} />
       case 'matches':
         return <MatchHistory user={user} />
       case 'notifications':
