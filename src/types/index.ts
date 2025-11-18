@@ -133,6 +133,18 @@ export interface WhatsAppInvite {
   signupLink: string
 }
 
+export interface Commentary {
+  ball: number
+  over: number
+  bowler: string
+  batsman: string
+  runs: number
+  wicket?: boolean
+  dismissalType?: DismissalType
+  extras?: never
+  description: string
+}
+
 export interface Match {
   id: string
   team1: Team
@@ -158,11 +170,12 @@ export interface Innings {
   wickets: number
   overs: number
   balls: number
-  extras: Extras
+  extras?: Extras
   batsmen: BatsmanStats[]
   bowlers: BowlerStats[]
   currentBatsmen: string[]
   currentBowler: string
+  partnerships?: Partnership[]
 }
 
 export interface BatsmanStats {
@@ -207,16 +220,24 @@ export interface MatchResult {
   type: 'runs' | 'wickets' | 'tie' | 'draw'
 }
 
-export interface Commentary {
-  ball: number
-  over: number
-  bowler: string
-  batsman: string
+// ---------------- Partnership Tracking ----------------
+export interface Partnership {
+  batter1: string
+  batter2: string
   runs: number
-  wicket?: boolean
-  dismissalType?: DismissalType
-  extras?: ExtraType
-  description: string
+  balls: number
+  fours: number
+  sixes: number
+  extras?: number
+  overthrows?: number // track overthrows separately
+  batter1Runs: number
+  batter1Balls: number
+  batter2Runs: number
+  batter2Balls: number
+  start: { over: number; ball: number }
+  end?: { over: number; ball: number }
+  wicketNo?: number
+  wicketType?: DismissalType | 'innings end'
 }
 
 export interface Ball {
@@ -226,13 +247,13 @@ export interface Ball {
   bowler: string
   batsman: string
   runs: number
-  isWicket: boolean
+  isWicket?: boolean
   dismissalType?: DismissalType
   dismissedPlayer?: string
   dismissed_batsman_id?: string // Alternative to dismissedPlayer
-  extraType?: ExtraType
-  extras?: ExtraType // Alternative to extraType
-  extraRuns: number
+  extraType?: never
+  extras?: never
+  extraRuns?: never
   isLegal: boolean
   striker_id?: string
   non_striker_id?: string

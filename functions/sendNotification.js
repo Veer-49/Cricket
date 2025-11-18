@@ -137,67 +137,85 @@ exports.cleanupNotifications = functions.pubsub
     }
   })
 
+const cors = require('cors')({ origin: true });
+
 // Manual notification sending endpoint
-exports.sendNotification = functions.https.onCall(async (data, context) => {
-  try {
-    // Verify authentication
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        'unauthenticated',
-        'User must be authenticated'
-      )
-    }
-    
-    const { userIds, notification } = data
-    
-    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'userIds must be a non-empty array'
-      )
-    }
-    
-    if (!notification || !notification.title || !notification.body) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'notification must have title and body'
-      )
-    }
-    
-    // Get device tokens for users
-    const tokens = []
-    for (const userId of userIds) {
-      const userTokensSnapshot = await db.ref(`deviceTokens/${userId}`).once('value')
-      if (userTokensSnapshot.exists()) {
-        const userTokens = userTokensSnapshot.val()
-        Object.values(userTokens).forEach(tokenData => {
-          if (tokenData.token) {
-            tokens.push(tokenData.token)
-          }
-        })
-      }
-    }
-    
-    if (tokens.length === 0) {
-      return { success: false, message: 'No device tokens found for users' }
-    }
-    
-    // Queue notification for processing
-    await db.ref('notificationQueue').push({
-      tokens,
-      notification,
-      timestamp: admin.database.ServerValue.TIMESTAMP,
-      status: 'pending',
-      requestedBy: context.auth.uid
-    })
-    
-    return { success: true, message: 'Notification queued successfully' }
-    
-  } catch (error) {
-    console.error('Error in sendNotification:', error)
-    throw new functions.https.HttpsError(
-      'internal',
-      'Failed to send notification'
-    )
+exports.sendNotification = functions.https.onRequest(async (req, res) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.status(204).send('');
+    return;
   }
-})
+
+  // For regular requests
+  cors(req, res, async () => {
+    try {
+      const { userIds, notification } = req.body;
+      
+      if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid argument',
+          message: 'userIds must be a non-empty array'
+        });
+      }
+      
+      if (!notification || !notification.title || !notification.body) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid argument',
+          message: 'Notification must have title and body'
+        });
+      }
+      
+      // Get device tokens for users
+      const tokens = [];
+      for (const userId of userIds) {
+        const userTokensSnapshot = await db.ref(`deviceTokens/${userId}`).once('value');
+        if (userTokensSnapshot.exists()) {
+          const userTokens = userTokensSnapshot.val();
+          if (userTokens) {
+            Object.values(userTokens).forEach(tokenData => {
+              if (tokenData && tokenData.token) {
+                tokens.push(tokenData.token);
+              }
+            });
+          }
+        }
+      }
+      
+      if (tokens.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'No device tokens found for users'
+        });
+      }
+      
+      // Queue notification for processing
+      const notificationRef = db.ref('notificationQueue').push();
+      await notificationRef.set({
+        tokens,
+        notification,
+        timestamp: admin.database.ServerValue.TIMESTAMP,
+        status: 'pending',
+        requestedBy: req.user ? req.user.uid : 'system'
+      });
+      
+      res.status(200).json({ 
+        success: true, 
+        message: 'Notification queued successfully',
+        notificationId: notificationRef.key
+      });
+    } catch (error) {
+      console.error('Error in sendNotification:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to send notification',
+        details: error.message
+      });
+    }
+  });
+});

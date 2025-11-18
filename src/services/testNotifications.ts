@@ -1,5 +1,4 @@
-import { FCMService } from './fcmService'
-import { NotificationService } from './notificationService'
+import { NotificationService } from './fcmService'
 
 export class TestNotifications {
   /**
@@ -9,9 +8,9 @@ export class TestNotifications {
     console.log('🧪 Testing notifications for user:', userId)
     
     try {
-      // 1. Test FCM initialization
-      console.log('1️⃣ Testing FCM initialization...')
-      await FCMService.initializeForUser(userId)
+      // 1. Test notification initialization
+      console.log('1️⃣ Testing notification initialization...')
+      await NotificationService.initializeForUser(userId)
       
       // 2. Test browser notification permission
       console.log('2️⃣ Checking notification permission...')
@@ -32,13 +31,13 @@ export class TestNotifications {
       
       // 4. Test local notification storage
       console.log('4️⃣ Testing local notification storage...')
-      await NotificationService.createMatchStartNotification(
+      const notification = NotificationService.createMatchNotification(
         'test-match-123',
         'Test Team A',
         'Test Team B', 
-        'Test Stadium',
-        [{ userId, teamId: 'test-team' }]
+        'Test Stadium'
       )
+      NotificationService.showNotification(notification)
       
       console.log('✅ Test completed! Check browser notifications and console.')
       

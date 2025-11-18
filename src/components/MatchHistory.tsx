@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Match } from '@/types'
 import CricketScoreboard from './CricketScoreboard'
+import { database } from '@/config/firebase'
+import { ref, get, onValue, off } from 'firebase/database'
 import { 
   Trophy, 
   Calendar, 
@@ -26,10 +28,172 @@ export default function MatchHistory({ user }: MatchHistoryProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
 
+  // Test Firebase connection by accessing a public path
+  const testFirebaseConnection = async (): Promise<boolean> => {
+    try {
+      console.log('Testing Firebase connection...')
+      
+      // Test database connection by reading a public path
+      const testRef = ref(database, 'public/test_connection')
+      await get(testRef)
+      
+      console.log('Firebase connection test successful')
+      return true
+    } catch (error: unknown) {
+      console.error('Firebase connection test failed:', error)
+      return false
+    }
+  }
+
+  const [isLoading, setIsLoading] = useState(true);
+
+  const loadFromLocalStorage = () => {
+    console.log('Attempting to load matches from localStorage...');
+    try {
+      const savedMatches = JSON.parse(localStorage.getItem('cricketMatches') || '[]');
+      console.log(`Successfully loaded ${savedMatches.length} matches from localStorage`);
+      
+      // Validate the loaded data
+      if (Array.isArray(savedMatches)) {
+        console.log('LocalStorage data validation: OK');
+        setMatches(savedMatches);
+        setFilteredMatches(savedMatches);
+        return savedMatches;
+      } else {
+        console.warn('Invalid data format in localStorage, using empty array');
+        const emptyMatches: Match[] = [];
+        setMatches(emptyMatches);
+        setFilteredMatches(emptyMatches);
+        return emptyMatches;
+      }
+    } catch (localError) {
+      console.error('Error loading from localStorage:', {
+        error: localError,
+        message: localError instanceof Error ? localError.message : 'Unknown error'
+      });
+      const emptyMatches: Match[] = [];
+      setMatches(emptyMatches);
+      setFilteredMatches(emptyMatches);
+      return emptyMatches;
+    }
+  };
+
   useEffect(() => {
-    // Load matches from localStorage
-    const savedMatches = JSON.parse(localStorage.getItem('cricketMatches') || '[]')
-    setMatches(savedMatches)
+    const loadData = async () => {
+      setIsLoading(true);
+      console.log('Starting to load match data...');
+      
+      try {
+        // First check Firebase connection
+        console.log('Testing Firebase connection...');
+        const isConnected = await testFirebaseConnection();
+        
+        if (!isConnected) {
+          console.warn('Firebase connection test failed, falling back to localStorage');
+          loadFromLocalStorage();
+          return;
+        }
+        
+        console.log('Firebase connection test successful');
+        console.log('Loading matches from Firebase...');
+        
+        const matchesRef = ref(database, 'matches');
+        
+        try {
+          // Try to get initial data
+          const snapshot = await get(matchesRef);
+          console.log('Firebase snapshot:', snapshot.exists() ? 'Data exists' : 'No data found');
+          
+          const matchesData = snapshot.val() || {};
+          console.log('Raw matches data:', matchesData);
+          
+          // Convert to array and ensure unique IDs
+          const matchesList = Object.entries(matchesData).map(([id, match]) => ({
+            ...(match as Match),
+            id: id || `match-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+          }));
+          
+          console.log(`Found ${matchesList.length} matches in Firebase`);
+          
+          if (matchesList.length > 0) {
+            console.log('Updating state with Firebase matches');
+            setMatches(matchesList);
+            setFilteredMatches(matchesList);
+            localStorage.setItem('cricketMatches', JSON.stringify(matchesList));
+          } else {
+            console.log('No matches found in Firebase, checking localStorage...');
+            loadFromLocalStorage();
+          }
+        } catch (dbError) {
+          console.error('Error reading matches from Firebase:', {
+            error: dbError,
+            code: (dbError as any)?.code,
+            message: (dbError as Error)?.message,
+            stack: (dbError as Error)?.stack
+          });
+          loadFromLocalStorage();
+        }
+        
+        // Set up real-time listener for future updates
+        console.log('Setting up real-time listener for matches...');
+        const unsubscribe = onValue(matchesRef, 
+          (snapshot) => {
+            console.log('Received real-time update from Firebase');
+            
+            if (snapshot.exists()) {
+              const matchesData = snapshot.val() || {};
+              console.log('Real-time update data:', matchesData);
+              
+              const updatedMatches = Object.entries(matchesData).map(([id, match]) => ({
+                ...(match as Match),
+                id: id || `match-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+              }));
+              
+              console.log(`Processing ${updatedMatches.length} matches from real-time update`);
+              
+              if (updatedMatches.length > 0) {
+                console.log('Updating state with real-time matches');
+                setMatches(updatedMatches);
+                setFilteredMatches(updatedMatches);
+                localStorage.setItem('cricketMatches', JSON.stringify(updatedMatches));
+              } else {
+                console.log('No matches in real-time update, checking localStorage...');
+                loadFromLocalStorage();
+              }
+            } else {
+              console.log('Real-time update: No data available in snapshot');
+              loadFromLocalStorage();
+            }
+          },
+          (error) => {
+            console.error('Error in real-time listener:', {
+              error: error instanceof Error ? error.message : 'Unknown error',
+              code: (error as any)?.code,
+              stack: error instanceof Error ? error.stack : undefined
+            });
+          }
+        );
+        
+        // Return cleanup function
+        return () => {
+          console.log('Cleaning up real-time listener...');
+          off(matchesRef, 'value', unsubscribe);
+        };
+        
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error('Unexpected error in loadData:', {
+          error: errorMessage,
+          stack: error instanceof Error ? error.stack : undefined
+        });
+        loadFromLocalStorage();
+      } finally {
+        console.log('Finished loading match data');
+        setIsLoading(false);
+      }
+    };
+    
+    loadData();
   }, [])
 
   useEffect(() => {
@@ -56,15 +220,17 @@ export default function MatchHistory({ user }: MatchHistoryProps) {
   }, [matches, searchTerm, statusFilter])
 
   const getMatchResult = (match: Match): string => {
-    if (match.status !== 'completed' || !match.result) return 'In Progress'
+    if (!match || match.status !== 'completed' || !match.result) return 'In Progress'
     
     if (match.result.type === 'tie') return 'Match Tied'
     
-    return `${match.result.winner} won by ${match.result.margin} ${match.result.type}`
+    return match.result.winner 
+      ? `${match.result.winner} won by ${match.result.margin} ${match.result.type}`
+      : 'Match completed'
   }
 
   const getResultColor = (match: Match): string => {
-    if (match.status !== 'completed') return 'text-yellow-600'
+    if (!match || match.status !== 'completed') return 'text-yellow-600'
     if (match.result?.type === 'tie') return 'text-gray-600'
     return 'text-green-600'
   }
@@ -78,8 +244,8 @@ export default function MatchHistory({ user }: MatchHistoryProps) {
         className="flex flex-col md:flex-row md:items-center md:justify-between"
       >
         <div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Match History</h1>
-          <p className="text-gray-600">View completed and ongoing cricket matches</p>
+          <h1 className="text-3xl font-bold text-black mb-2">Match History</h1>
+          <p className="text-black">View completed and ongoing cricket matches</p>
         </div>
       </motion.div>
 
@@ -91,7 +257,7 @@ export default function MatchHistory({ user }: MatchHistoryProps) {
         className="card p-6"
       >
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
-          <span className="text-sm text-gray-600 mb-4 md:mb-0">
+          <span className="text-sm text-black mb-4 md:mb-0">
             {filteredMatches.length} matches found
           </span>
         </div>
@@ -130,36 +296,36 @@ export default function MatchHistory({ user }: MatchHistoryProps) {
       <div className="space-y-4">
         {filteredMatches.map((match, index) => (
           <motion.div
-            key={match.id}
+            key={`${match.id}-${index}-${match.date || ''}`}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
+            transition={{ delay: 0.1 }}
             className="card p-6 hover:shadow-lg transition-shadow cursor-pointer"
             onClick={() => setSelectedMatch(match)}
           >
             <div className="flex flex-col md:flex-row md:items-center md:justify-between">
               <div className="flex-1">
                 <div className="flex items-center mb-2">
-                  <Trophy className="w-5 h-5 text-cricket-primary mr-2" />
-                  <h3 className="text-lg font-semibold text-gray-800">
+                  <Trophy className="w-5 h-5 text-black mr-2" />
+                  <h3 className="text-lg font-semibold text-black">
                     {match.team1.name} vs {match.team2.name}
                   </h3>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
-                  <div className="flex items-center text-gray-600">
-                    <Calendar className="w-4 h-4 mr-2" />
-                    <span className="text-sm">
+                  <div className="flex items-center text-black">
+                    <Calendar className="w-4 h-4 mr-2 text-black" />
+                    <span className="text-sm text-black">
                       {new Date(match.date).toLocaleDateString()}
                     </span>
                   </div>
-                  <div className="flex items-center text-gray-600">
-                    <MapPin className="w-4 h-4 mr-2" />
-                    <span className="text-sm">{match.venue}</span>
+                  <div className="flex items-center text-black">
+                    <MapPin className="w-4 h-4 mr-2 text-black" />
+                    <span className="text-sm text-black">{match.venue}</span>
                   </div>
-                  <div className="flex items-center text-gray-600">
-                    <Clock className="w-4 h-4 mr-2" />
-                    <span className="text-sm">{match.format}</span>
+                  <div className="flex items-center text-black">
+                    <Clock className="w-4 h-4 mr-2 text-black" />
+                    <span className="text-sm text-black">{match.format}</span>
                   </div>
                 </div>
 
@@ -170,13 +336,13 @@ export default function MatchHistory({ user }: MatchHistoryProps) {
                       match.team1 : match.team2
                     return (
                       <div key={inningsIndex} className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-sm text-gray-600 mb-1">
+                        <p className="text-sm text-black mb-1">
                           {battingTeam.name} - Innings {inningsIndex + 1}
                         </p>
-                        <p className="text-xl font-bold text-cricket-primary">
+                        <p className="text-xl font-bold text-black">
                           {innings.runs}/{innings.wickets}
                         </p>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-black">
                           ({Math.floor(innings.balls / 6)}.{innings.balls % 6} overs)
                         </p>
                       </div>
@@ -184,7 +350,7 @@ export default function MatchHistory({ user }: MatchHistoryProps) {
                   })}
                 </div>
 
-                <p className={`font-semibold ${getResultColor(match)}`}>
+                <p className={`font-semibold text-black`}>
                   {getMatchResult(match)}
                 </p>
               </div>
@@ -195,7 +361,7 @@ export default function MatchHistory({ user }: MatchHistoryProps) {
                   whileTap={{ scale: 0.95 }}
                   className="btn-primary"
                 >
-                  <Eye className="w-4 h-4 mr-2" />
+                  <Eye className="w-4 h-4 mr-2 text-black" />
                   View Scorecard
                 </motion.button>
               </div>
@@ -209,9 +375,9 @@ export default function MatchHistory({ user }: MatchHistoryProps) {
             animate={{ opacity: 1 }}
             className="text-center py-12"
           >
-            <Trophy className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-600 mb-2">No matches found</h3>
-            <p className="text-gray-500">
+            <Trophy className="w-16 h-16 text-black mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-black mb-2">No matches found</h3>
+            <p className="text-black">
               {searchTerm || statusFilter !== 'all' 
                 ? 'Try adjusting your search or filters'
                 : 'Start scoring your first cricket match!'
@@ -237,10 +403,10 @@ export default function MatchHistory({ user }: MatchHistoryProps) {
               className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto"
             >
               <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center">
-                <h3 className="text-xl font-bold text-gray-800">Match Scorecard</h3>
+                <h3 className="text-xl font-bold text-black">Match Scorecard</h3>
                 <button
                   onClick={() => setSelectedMatch(null)}
-                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                  className="text-black hover:text-black text-2xl"
                 >
                   ×
                 </button>

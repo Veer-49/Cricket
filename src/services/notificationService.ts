@@ -55,44 +55,40 @@ export class NotificationService {
     
     this.saveNotifications(notifications)
     
-<<<<<<< HEAD
-    // Send FCM push notifications
-    try {
-      const userIds = teamMembers.map(member => member.userId)
-      await FCMService.sendMatchStartNotification(
-        userIds,
-        team1Name,
-        team2Name,
-        venue,
-        matchId
-      )
-    } catch (error) {
-      console.error('Error sending FCM notification:', error)
-=======
     // Send notifications to all team members via Firebase function
     try {
-      const sendNotification = httpsCallable(functions, 'sendNotification')
-      const userIds = teamMembers.map(member => member.userId)
-      
-      await sendNotification({
-        userIds: userIds,
-        notification: {
-          title: '🏏 Match Started!',
-          body: `${team1Name} vs ${team2Name} at ${venue}`,
-          data: {
-            type: 'match_start',
-            matchId: matchId,
-            team1Name: team1Name,
-            team2Name: team2Name,
-            venue: venue,
-            timestamp: Date.now()
+      const userIds = teamMembers.map(member => member.userId);
+      const response = await fetch('https://us-central1-cricket-team-manager-5ef78.cloudfunctions.net/sendNotification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userIds: userIds,
+          notification: {
+            title: '🏏 Match Started!',
+            body: `${team1Name} vs ${team2Name} at ${venue}`,
+            data: {
+              type: 'match_start',
+              matchId: matchId,
+              team1Name: team1Name,
+              team2Name: team2Name,
+              venue: venue,
+              timestamp: Date.now()
+            }
           }
-        }
-      })
+        })
+      });
+
+      const result = await response.json();
       
-      console.log(`✅ Match start notifications sent to ${userIds.length} team members`)
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to send notifications');
+      }
+      
+      console.log(`✅ Match start notifications sent to ${userIds.length} team members`, result);
     } catch (error) {
-      console.error('❌ Failed to send Firebase notifications:', error)
+      console.error('❌ Failed to send Firebase notifications:', error);
       
       // Fallback: Show local notification to current user only
       const matchNotification = FCMService.createMatchNotification(
@@ -100,9 +96,8 @@ export class NotificationService {
         team1Name,
         team2Name,
         venue
-      )
-      FCMService.showNotification(matchNotification)
->>>>>>> fix/ui-updates
+      );
+      FCMService.showNotification(matchNotification);
     }
   }
 
@@ -128,19 +123,6 @@ export class NotificationService {
     notifications.push(notification)
     this.saveNotifications(notifications)
     
-<<<<<<< HEAD
-    // Send FCM push notification
-    try {
-      await FCMService.sendTeamJoinNotification(
-        captainId,
-        teamName,
-        newMemberName,
-        teamId
-      )
-    } catch (error) {
-      console.error('Error sending FCM notification:', error)
-    }
-=======
     // Send notification to the captain via Firebase function
     try {
       const sendNotification = httpsCallable(functions, 'sendNotification')
@@ -173,7 +155,6 @@ export class NotificationService {
     
     // Ensure push is initialized for the captain
     FCMService.initializeForUser(captainId).catch(console.error)
->>>>>>> fix/ui-updates
   }
 
   static getUserNotifications(userId: string): LocalNotification[] {

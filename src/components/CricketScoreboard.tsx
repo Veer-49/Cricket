@@ -45,11 +45,13 @@ export default function CricketScoreboard({ match }: CricketScoreboardProps) {
           name: player.name,
           runs,
           balls,
+          ballsFaced: balls, // Adding required ballsFaced property
           fours: Math.floor(runs / 8),
           sixes: Math.floor(runs / 15),
           strikeRate: calculateStrikeRate(runs, balls),
           isOut: index < 4,
-          dismissalType: index < 4 ? (['bowled', 'caught', 'lbw', 'run-out'] as const)[index % 4] : undefined
+          dismissalType: index < 4 ? (['bowled', 'caught', 'lbw', 'run-out'] as const)[index % 4] : undefined,
+          howOut: index < 4 ? (['bowled', 'caught', 'lbw', 'run-out'] as const)[index % 4] : undefined
         })
       }
     })
@@ -74,7 +76,8 @@ export default function CricketScoreboard({ match }: CricketScoreboardProps) {
           runs,
           wickets,
           maidens: Math.floor(Math.random() * 2),
-          economyRate: calculateEconomyRate(runs, overs)
+          economyRate: calculateEconomyRate(runs, overs),
+          legalBalls: overs * 6 // Adding required legalBalls property (assuming all balls are legal in mock data)
         })
       }
     })
@@ -132,11 +135,11 @@ export default function CricketScoreboard({ match }: CricketScoreboardProps) {
       >
         <div className="flex justify-between items-start mb-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">
+            <h2 className="text-2xl font-bold text-black">
               {match.team1.name} vs {match.team2.name}
             </h2>
-            <p className="text-gray-600">{match.format} • {match.venue}</p>
-            <p className="text-sm text-gray-500">
+            <p className="text-black">{match.format} • {match.venue}</p>
+            <p className="text-sm text-black">
               {new Date(match.date).toLocaleDateString()}
             </p>
           </div>
@@ -176,7 +179,7 @@ export default function CricketScoreboard({ match }: CricketScoreboardProps) {
         animate={{ opacity: 1, y: 0 }}
         className="card p-6"
       >
-        <h3 className="text-xl font-bold text-gray-800 mb-4">Innings Summary</h3>
+        <h3 className="text-xl font-bold text-black mb-4">Innings Summary</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {match.innings.map((innings, index) => {
             const battingTeam = match.team1.id === innings.battingTeam ? match.team1 : match.team2
@@ -185,28 +188,31 @@ export default function CricketScoreboard({ match }: CricketScoreboardProps) {
             return (
               <div key={index} className="bg-gray-50 rounded-lg p-4">
                 <div className="flex justify-between items-center mb-3">
-                  <h4 className="font-semibold text-gray-800">{battingTeam.name}</h4>
-                  <span className="text-sm text-gray-600">Innings {index + 1}</span>
+                  <h4 className="font-semibold text-black">{battingTeam.name}</h4>
+                  <span className="text-sm text-black">Innings {index + 1}</span>
                 </div>
                 
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-3xl font-bold text-cricket-primary">
+                  <span className="text-3xl font-bold text-black">
                     {innings.runs}/{innings.wickets}
                   </span>
-                  <span className="text-gray-600">
+                  <span className="text-black">
                     ({Math.floor(innings.balls / 6)}.{innings.balls % 6} overs)
                   </span>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-gray-600">Run Rate:</span>
-                    <span className="font-semibold ml-2">{runRate.toFixed(2)}</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-black">Run Rate:</span>
+                    <span className="font-semibold">{runRate.toFixed(2)}</span>
                   </div>
-                  <div>
-                    <span className="text-gray-600">Extras:</span>
-                    <span className="font-semibold ml-2">
-                      {innings.extras.wides + innings.extras.noBalls + innings.extras.byes + innings.extras.legByes}
+                  <div className="flex items-center justify-between">
+                    <span className="text-black">Extras:</span>
+                    <span className="font-semibold">
+                      {(innings.extras?.wides || 0) + 
+                       (innings.extras?.noBalls || 0) + 
+                       (innings.extras?.byes || 0) + 
+                       (innings.extras?.legByes || 0)}
                     </span>
                   </div>
                 </div>
@@ -230,8 +236,8 @@ export default function CricketScoreboard({ match }: CricketScoreboardProps) {
               onClick={() => setActiveTab(tab as any)}
               className={`flex-1 py-2 px-4 rounded-md font-medium transition-all capitalize ${
                 activeTab === tab
-                  ? 'bg-white text-cricket-primary shadow-md'
-                  : 'text-gray-600 hover:text-gray-800'
+                  ? 'bg-white text-black shadow-md'
+                  : 'text-black hover:text-black'
               }`}
             >
               {tab}
@@ -247,8 +253,8 @@ export default function CricketScoreboard({ match }: CricketScoreboardProps) {
               onClick={() => setActiveInnings(index)}
               className={`px-4 py-2 rounded-lg font-medium ${
                 activeInnings === index
-                  ? 'bg-cricket-primary text-white'
-                  : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                  ? 'bg-cricket-primary text-black'
+                  : 'bg-gray-100 text-black hover:bg-gray-200'
               }`}
             >
               Innings {index + 1}
@@ -259,30 +265,30 @@ export default function CricketScoreboard({ match }: CricketScoreboardProps) {
         {/* Batting Card */}
         {activeTab === 'batting' && (
           <div className="space-y-4">
-            <h4 className="text-lg font-semibold text-gray-800">Batting Performance</h4>
+            <h4 className="text-lg font-semibold text-black mb-3">Batting Performance</h4>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="text-left p-3">Batsman</th>
-                    <th className="text-center p-3">Runs</th>
-                    <th className="text-center p-3">Balls</th>
-                    <th className="text-center p-3">4s</th>
-                    <th className="text-center p-3">6s</th>
-                    <th className="text-center p-3">SR</th>
-                    <th className="text-left p-3">Dismissal</th>
+                    <th className="text-left p-3 text-black">Batsman</th>
+                    <th className="text-center p-3 text-black">Runs</th>
+                    <th className="text-center p-3 text-black">Balls</th>
+                    <th className="text-center p-3 text-black">4s</th>
+                    <th className="text-center p-3 text-black">6s</th>
+                    <th className="text-center p-3 text-black">SR</th>
+                    <th className="text-left p-3 text-black">Dismissal</th>
                   </tr>
                 </thead>
                 <tbody>
                   {getBattingStats(match.innings[activeInnings]).map((batsman, index) => (
                     <tr key={index} className="border-b border-gray-100">
-                      <td className="p-3 font-medium">{batsman.name}</td>
-                      <td className="text-center p-3 font-semibold">{batsman.runs}</td>
-                      <td className="text-center p-3">{batsman.balls}</td>
-                      <td className="text-center p-3">{batsman.fours}</td>
-                      <td className="text-center p-3">{batsman.sixes}</td>
-                      <td className="text-center p-3">{batsman.strikeRate.toFixed(1)}</td>
-                      <td className="p-3 text-sm text-gray-600">
+                      <td className="p-3 font-medium text-black">{batsman.name}</td>
+                      <td className="text-center p-3 font-semibold text-black">{batsman.runs}</td>
+                      <td className="text-center p-3 text-black">{batsman.balls}</td>
+                      <td className="text-center p-3 text-black">{batsman.fours}</td>
+                      <td className="text-center p-3 text-black">{batsman.sixes}</td>
+                      <td className="text-center p-3 text-black">{batsman.strikeRate.toFixed(1)}</td>
+                      <td className="p-3 text-sm text-black">
                         {batsman.isOut ? batsman.dismissalType : 'Not Out'}
                       </td>
                     </tr>
@@ -296,28 +302,28 @@ export default function CricketScoreboard({ match }: CricketScoreboardProps) {
         {/* Bowling Card */}
         {activeTab === 'bowling' && (
           <div className="space-y-4">
-            <h4 className="text-lg font-semibold text-gray-800">Bowling Performance</h4>
+            <h4 className="text-lg font-semibold text-black mb-3">Bowling Performance</h4>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="text-left p-3">Bowler</th>
-                    <th className="text-center p-3">Overs</th>
-                    <th className="text-center p-3">Maidens</th>
-                    <th className="text-center p-3">Runs</th>
-                    <th className="text-center p-3">Wickets</th>
-                    <th className="text-center p-3">Economy</th>
+                    <th className="text-left p-3 text-black">Bowler</th>
+                    <th className="text-center p-3 text-black">Overs</th>
+                    <th className="text-center p-3 text-black">Maidens</th>
+                    <th className="text-center p-3 text-black">Runs</th>
+                    <th className="text-center p-3 text-black">Wickets</th>
+                    <th className="text-center p-3 text-black">Econ</th>
                   </tr>
                 </thead>
                 <tbody>
                   {getBowlingStats(match.innings[activeInnings]).map((bowler, index) => (
                     <tr key={index} className="border-b border-gray-100">
-                      <td className="p-3 font-medium">{bowler.name}</td>
-                      <td className="text-center p-3">{bowler.overs}</td>
-                      <td className="text-center p-3">{bowler.maidens}</td>
-                      <td className="text-center p-3">{bowler.runs}</td>
-                      <td className="text-center p-3 font-semibold">{bowler.wickets}</td>
-                      <td className="text-center p-3">{bowler.economyRate.toFixed(2)}</td>
+                      <td className="p-3 font-medium text-black">{bowler.name}</td>
+                      <td className="text-center p-3 text-black">{Math.floor(bowler.overs / 6)}.{bowler.overs % 6}</td>
+                      <td className="text-center p-3 text-black">{bowler.maidens}</td>
+                      <td className="text-center p-3 font-medium text-black">{bowler.runs}</td>
+                      <td className="text-center p-3 font-semibold text-black">{bowler.wickets}</td>
+                      <td className="text-center p-3 text-black">{bowler.economyRate.toFixed(1)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -329,12 +335,12 @@ export default function CricketScoreboard({ match }: CricketScoreboardProps) {
         {/* Match Summary */}
         {activeTab === 'summary' && (
           <div className="space-y-6">
-            <h4 className="text-lg font-semibold text-gray-800">Match Summary</h4>
+            <h4 className="text-lg font-semibold text-black mb-4">Match Summary</h4>
             
             {/* Toss Information */}
             <div className="bg-blue-50 rounded-lg p-4">
-              <h5 className="font-semibold text-gray-800 mb-2">Toss</h5>
-              <p className="text-gray-700">
+              <h5 className="font-semibold text-black mb-2">Toss</h5>
+              <p className="text-black">
                 {match.team1.id === match.tossWinner ? match.team1.name : match.team2.name} won the toss and chose to {match.tossDecision} first
               </p>
             </div>
@@ -343,70 +349,77 @@ export default function CricketScoreboard({ match }: CricketScoreboardProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-green-50 rounded-lg p-4 text-center">
                 <Target className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-2xl font-bold text-black">
                   {Math.max(...match.innings.map(i => i.runs))}
                 </p>
-                <p className="text-sm text-gray-600">Highest Score</p>
+                <p className="text-sm text-black">Highest Score</p>
               </div>
               
               <div className="bg-red-50 rounded-lg p-4 text-center">
                 <Award className="w-8 h-8 text-red-600 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-red-600">
+                <p className="text-2xl font-bold text-black">
                   {Math.max(...match.innings.map(i => i.wickets))}
                 </p>
-                <p className="text-sm text-gray-600">Most Wickets</p>
+                <p className="text-sm text-black">Most Wickets</p>
               </div>
               
               <div className="bg-yellow-50 rounded-lg p-4 text-center">
                 <Clock className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-yellow-600">
+                <p className="text-2xl font-bold text-black">
                   {Math.max(...match.innings.map(i => Math.floor(i.balls / 6)))}
                 </p>
-                <p className="text-sm text-gray-600">Most Overs</p>
+                <p className="text-sm text-black">Most Overs</p>
               </div>
               
               <div className="bg-purple-50 rounded-lg p-4 text-center">
                 <TrendingUp className="w-8 h-8 text-purple-600 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-purple-600">
+                <p className="text-2xl font-bold text-black">
                   {Math.max(...match.innings.map(i => 
                     i.balls > 0 ? (i.runs / (i.balls / 6)) : 0
                   )).toFixed(1)}
                 </p>
-                <p className="text-sm text-gray-600">Best Run Rate</p>
+                <p className="text-sm text-black">Best Run Rate</p>
               </div>
             </div>
 
             {/* Extras Breakdown */}
             <div className="bg-gray-50 rounded-lg p-4">
-              <h5 className="font-semibold text-gray-800 mb-3">Extras Breakdown</h5>
+              <h5 className="font-semibold text-black mb-3">Extras Breakdown</h5>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                 {match.innings.map((innings, index) => {
                   const battingTeam = match.team1.id === innings.battingTeam ? match.team1 : match.team2
+                  const extras = innings.extras || {
+                    wides: 0,
+                    noBalls: 0,
+                    byes: 0,
+                    legByes: 0,
+                    penalties: 0
+                  }
                   return (
                     <div key={index}>
-                      <p className="font-medium text-gray-700 mb-2">{battingTeam.name}</p>
+                      <p className="font-medium text-black mb-2">{battingTeam.name}</p>
                       <div className="space-y-1">
-                        <div className="flex justify-between">
+                        <div className="flex justify-between text-black">
                           <span>Wides:</span>
-                          <span>{innings.extras.wides}</span>
+                          <span>{extras.wides}</span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between text-black">
                           <span>No-balls:</span>
-                          <span>{innings.extras.noBalls}</span>
+                          <span>{extras.noBalls}</span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between text-black">
                           <span>Byes:</span>
-                          <span>{innings.extras.byes}</span>
+                          <span>{extras.byes}</span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between text-black">
                           <span>Leg-byes:</span>
-                          <span>{innings.extras.legByes}</span>
+                          <span>{extras.legByes}</span>
                         </div>
-                        <div className="flex justify-between font-semibold border-t pt-1">
+                        <div className="flex justify-between font-semibold border-t pt-1 text-black">
                           <span>Total:</span>
                           <span>
-                            {innings.extras.wides + innings.extras.noBalls + 
-                             innings.extras.byes + innings.extras.legByes}
+                            {extras.wides + extras.noBalls + 
+                             extras.byes + extras.legByes}
                           </span>
                         </div>
                       </div>
