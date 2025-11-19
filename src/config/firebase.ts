@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app'
 import { getDatabase } from 'firebase/database'
 import { getAuth } from 'firebase/auth'
+import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore'
 import { getMessaging, isSupported } from 'firebase/messaging'
 import { getFunctions } from 'firebase/functions'
 
@@ -21,7 +22,19 @@ const app = initializeApp(firebaseConfig)
 // Initialize Firebase services
 export const database = getDatabase(app)
 export const auth = getAuth(app)
-export const functions = getFunctions(app)
+export const firestore = getFirestore(app)
+export const functions = getFunctions(app, 'asia-southeast1') // Specify region
+
+// Enable offline persistence for Firestore
+if (typeof window !== 'undefined') {
+  enableIndexedDbPersistence(firestore).catch((err) => {
+    if (err.code === 'failed-precondition') {
+      console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.')
+    } else if (err.code === 'unimplemented') {
+      console.warn('The current browser does not support persistence.')
+    }
+  })
+}
 
 // Initialize Firebase Cloud Messaging (only if supported)
 let messaging: any = null

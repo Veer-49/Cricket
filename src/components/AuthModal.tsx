@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
-import { User, PlayerStats } from '@/types'
-import { v4 as uuidv4 } from 'uuid'
+import { User } from '@/types'
+import { AuthService } from '@/services/authService'
 import toast from 'react-hot-toast'
 import { UserPlus, LogIn, Mail, Phone, Lock, User as UserIcon } from 'lucide-react'
 
@@ -28,64 +28,36 @@ interface SignupForm {
 export default function AuthModal({ onLogin }: AuthModalProps) {
   const [isLogin, setIsLogin] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
+  const [showPasswordReset, setShowPasswordReset] = useState(false)
 
-  // Clear localStorage for testing
-  const clearStorage = () => {
-    localStorage.removeItem('cricketUsers')
-    localStorage.removeItem('cricketUser')
-    toast.success('Storage cleared! You can now create new accounts.')
+
+  const handlePasswordReset = async (email: string) => {
+    try {
+      await AuthService.resetPassword(email)
+      toast.success('Password reset email sent! Check your inbox.')
+      setShowPasswordReset(false)
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to send reset email')
+    }
   }
-
-  // Check stored users for debugging
-  const checkStoredUsers = () => {
-    const users = JSON.parse(localStorage.getItem('cricketUsers') || '[]')
-    console.log('All stored users:', users)
-    toast.success(`Found ${users.length} users in storage. Check console for details.`)
-  }
-
 
   const loginForm = useForm<LoginForm>()
   const signupForm = useForm<SignupForm>()
+  const resetForm = useForm<{ email: string }>()
 
   const handleLogin = async (data: LoginForm) => {
     setIsLoading(true)
     
-    // Simulate API call
-    setTimeout(() => {
-      const users = JSON.parse(localStorage.getItem('cricketUsers') || '[]')
-      
-      // Normalize input data (trim spaces and convert email to lowercase)
-      const normalizedEmail = data.email.trim().toLowerCase()
-      const normalizedPassword = data.password.trim()
-      
-      // Debug logging
-      console.log('Login attempt:', { email: normalizedEmail, totalUsers: users.length })
-      console.log('Stored users:', users.map((u: any) => ({ email: u.email, hasPassword: !!u.password })))
-      
-      // Find user with case-insensitive email comparison
-      const user = users.find((u: any) => 
-        u.email.toLowerCase().trim() === normalizedEmail && 
-        u.password === normalizedPassword
-      )
-      
-      if (user) {
-        // Remove password from user object before storing
-        const { password, ...userWithoutPassword } = user
-        toast.success('Welcome back!')
-        onLogin(userWithoutPassword)
-      } else {
-        // More specific error messages for debugging
-        const emailExists = users.find((u: any) => u.email.toLowerCase().trim() === normalizedEmail)
-        if (emailExists) {
-          toast.error('Invalid password')
-          console.log('Email found but password mismatch')
-        } else {
-          toast.error('Email not found. Please check your email or sign up.')
-          console.log('Email not found in database')
-        }
-      }
+    try {
+      const user = await AuthService.signIn(data.email, data.password)
+      toast.success('Welcome back!')
+      onLogin(user)
+    } catch (error: any) {
+      console.error('Login error:', error)
+      toast.error(error.message || 'Login failed. Please check your credentials and try again.')
+    } finally {
       setIsLoading(false)
-    }, 1000)
+    }
   }
 
   const handleSignup = async (data: SignupForm) => {
@@ -95,54 +67,17 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
     }
 
     setIsLoading(true)
-
-    // Simulate API call
-    setTimeout(() => {
-      const users = JSON.parse(localStorage.getItem('cricketUsers') || '[]')
-      
-      // Normalize email for consistency
-      const normalizedEmail = data.email.trim().toLowerCase()
-      const existingUser = users.find((u: User) => u.email.toLowerCase().trim() === normalizedEmail)
-      
-      if (existingUser) {
-        toast.error('User already exists')
-        setIsLoading(false)
-        return
-      }
-
-      const newUser: any = {
-        id: uuidv4(),
-        name: data.name.trim(),
-        email: normalizedEmail,
-        phone: data.phone.trim(),
-        password: data.password.trim(), // Store password for authentication
-        stats: {
-          totalRuns: 0,
-          totalBalls: 0,
-          fours: 0,
-          sixes: 0,
-          wickets: 0,
-          overallStrikeRate: 0,
-          centuries: 0,
-          halfCenturies: 0,
-          hatTricks: 0,
-          matchesPlayed: 0,
-          totalOvers: 0,
-          runsGiven: 0,
-          economyRate: 0
-        },
-        createdAt: new Date()
-      }
-
-      users.push(newUser)
-      localStorage.setItem('cricketUsers', JSON.stringify(users))
-      
-      // Remove password from user object before login
-      const { password, ...userWithoutPassword } = newUser
+    
+    try {
+      const user = await AuthService.signUp(data.email, data.password, data.name, data.phone)
       toast.success('Account created successfully!')
-      onLogin(userWithoutPassword)
+      onLogin(user)
+    } catch (error: any) {
+      console.error('Signup error:', error)
+      toast.error(error.message || 'Signup failed. Please try again.')
+    } finally {
       setIsLoading(false)
-    }, 1000)
+    }
   }
 
   return (
@@ -194,7 +129,45 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
       </div>
 
       <AnimatePresence mode="wait">
-        {isLogin ? (
+        {showPasswordReset ? (
+          <motion.div
+            key="reset"
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -20, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="text-center"
+          >
+            <p className="text-gray-600 mb-4">Enter your email address and we'll send you a link to reset your password.</p>
+            <form onSubmit={resetForm.handleSubmit((data) => handlePasswordReset(data.email))} className="space-y-4">
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  {...resetForm.register('email', { required: true })}
+                  type="email"
+                  placeholder="Email"
+                  className="input-field pl-12"
+                  required
+                />
+              </div>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                type="submit"
+                disabled={isLoading}
+                className="w-full btn-primary py-3 disabled:opacity-50"
+              >
+                {isLoading ? 'Sending...' : 'Send Reset Email'}
+              </motion.button>
+            </form>
+            <button
+              onClick={() => setShowPasswordReset(false)}
+              className="text-cricket-primary font-semibold hover:underline mt-4"
+            >
+              Back to Login
+            </button>
+          </motion.div>
+        ) : isLogin ? (
           <motion.form
             key="login"
             initial={{ x: -20, opacity: 0 }}
@@ -318,20 +291,14 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
           </button>
         </p>
         
-        <div className="border-t pt-3 space-y-2">
+        {isLogin && (
           <button
-            onClick={checkStoredUsers}
-            className="text-xs text-blue-500 hover:text-blue-700 underline block mx-auto"
+            onClick={() => setShowPasswordReset(true)}
+            className="text-sm text-cricket-primary font-semibold hover:underline"
           >
-            Check Stored Users
+            Forgot your password?
           </button>
-          <button
-            onClick={clearStorage}
-            className="text-xs text-red-500 hover:text-red-700 underline block mx-auto"
-          >
-            Clear Storage (Reset)
-          </button>
-        </div>
+        )}
       </div>
     </motion.div>
   )
